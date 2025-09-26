@@ -1,18 +1,20 @@
 // src/pages/Profile.js
 import { useEffect, useState } from "react";
-import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs,  } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
 
-import { QRCodeCanvas } from "qrcode.react";
+
+import Payment from "./payment";
+
+
 
 
 function Profile() {
   const [profile, setProfile] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState("");
-  const [transactionId, setTransactionId] = useState("");
+
   const [docId, setDocId] = useState(""); // Save document ID
 
-    const [paymentCategory, setPaymentCategory] = useState(""); // Bank Transfer or Mobile Banking
+
   
 
 
@@ -35,43 +37,35 @@ function Profile() {
     fetchProfile();
   }, []);
 
-const handlePaymentSubmit = async () => {
-  if (!paymentMethod || !transactionId) {
-    alert("Please complete all fields");
-    return;
-  }
+// const handlePaymentSubmit = async () => {
+//   if (!paymentMethod || !transactionId) {
+//     alert("Please complete all fields");
+//     return;
+//   }
 
-  if (profile.paymentStatus === "completed") {
-    alert("Payment already submitted!");
-    return;
-  }
+//   if (profile.paymentStatus === "completed") {
+//     alert("Payment already submitted!");
+//     return;
+//   }
 
-  try {
-    const ref = doc(db, "applications", docId);
-    await updateDoc(ref, { 
-      paymentCategory, 
-      paymentMethod, 
-      transactionId,
-      paymentStatus: "completed"
-    });
-    alert("Payment info submitted successfully!");
-  } catch (err) {
-    console.error("Error saving payment info:", err);
-    alert("Failed to submit payment.");
-  }
-};
+//   try {
+//     const ref = doc(db, "applications", docId);
+//     await updateDoc(ref, { 
+//       paymentCategory, 
+//       paymentMethod, 
+//       transactionId,
+//       paymentStatus: "completed"
+//     });
+//     alert("Payment info submitted successfully!");
+//   } catch (err) {
+//     console.error("Error saving payment info:", err);
+//     alert("Failed to submit payment.");
+//   }
+// };
 
-    const mobileNumbers = {
-    Bkash: "017XXXXXXXX",
-    Nagad: "018XXXXXXXX",
-    Rocket: "019XXXXXXXX",
-  };
+   
 
-    const bankAccounts = {
-    "DBBL": "Account No: 123456789 (Dutch-Bangla Bank)",
-    "BRAC": "Account No: 987654321 (BRAC Bank)",
-    "IBBL": "Account No: 111222333 (Islami Bank)",
-  };
+   
 
   if (!profile) return <p>Loading profile...</p>;
 
@@ -168,227 +162,7 @@ const handlePaymentSubmit = async () => {
 
       {/* Payment Section */}
       {/* Payment Section */}
-    <div
-  style={{
-    marginTop: "30px",
-    padding: "20px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-  }}
->
-  <h3>Payment Section</h3>
-
-  {/* Completed Payment */}
-  {profile.paymentStatus === "completed" && (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "15px",
-        border: "1px solid #ccc",
-        borderRadius: "8px",
-        background: "#f0fff0",
-        marginTop: "15px",
-      }}
-    >
-      <p style={{ color: "green", fontWeight: "bold", margin: 0 }}>
-        Payment already submitted. Thank you!
-      </p>
-
-      <div style={{ textAlign: "right" }}>
-        <p style={{ margin: 0 }}>
-          <strong>Category:</strong> {profile.paymentCategory}
-        </p>
-        <p style={{ margin: 0 }}>
-          <strong>Method:</strong> {profile.paymentMethod}
-        </p>
-        <p style={{ margin: 0 }}>
-          <strong>Transaction ID:</strong> {profile.transactionId}
-        </p>
-
-        {profile.paymentCategory === "Mobile" && profile.paymentMethod && (
-          <div style={{ marginTop: "5px" }}>
-            <QRCodeCanvas
-              value={mobileNumbers[profile.paymentMethod]}
-              size={100}
-            />
-            <p style={{ margin: 0, fontSize: "12px" }}>Scan to Pay</p>
-          </div>
-        )}
-      </div>
-    </div>
-  )}
-
-  {/* Pending or not started payment */}
-  {profile.paymentStatus !== "completed" && (
-    <>
-      {/* Category selection */}
-      {!profile.paymentCategory ? (
-        <>
-          <label>Select Payment Category: </label>
-          <select
-            value={paymentCategory || ""}
-            onChange={(e) => {
-              setPaymentCategory(e.target.value);
-              setPaymentMethod(""); // reset method
-            }}
-          >
-            <option value="">-- Select --</option>
-            <option value="Bank">Bank Transfer</option>
-            <option value="Mobile">Mobile Banking</option>
-          </select>
-        </>
-      ) : (
-        <p>
-          <strong>Payment Category:</strong> {profile.paymentCategory}{" "}
-          {profile.paymentStatus === "pending" && "(pending)"}
-        </p>
-      )}
-
-      {/* Method selection */}
-      {(!profile.paymentMethod || profile.paymentStatus !== "pending") &&
-        (paymentCategory || profile.paymentCategory) === "Bank" && (
-          <div style={{ marginTop: "15px" }}>
-            <label>Select Bank: </label>
-            <select
-              value={paymentMethod || ""}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-            >
-              <option value="">-- Select Bank --</option>
-              {Object.keys(bankAccounts).map((bank) => (
-                <option key={bank} value={bank}>
-                  {bank}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-      {(!profile.paymentMethod || profile.paymentStatus !== "pending") &&
-        (paymentCategory || profile.paymentCategory) === "Mobile" && (
-          <div style={{ marginTop: "15px" }}>
-            <label>Select Mobile Banking: </label>
-            <select
-              value={paymentMethod || ""}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-            >
-              <option value="">-- Select Service --</option>
-              {Object.keys(mobileNumbers).map((service) => (
-                <option key={service} value={service}>
-                  {service}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-      {/* Show details + QR */}
-      {(paymentMethod || profile.paymentMethod) && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: "15px",
-          }}
-        >
-          <div style={{ flex: 1 }}>
-            {(paymentCategory || profile.paymentCategory) === "Bank" ? (
-              <p>
-                <strong>{paymentMethod || profile.paymentMethod}:</strong>{" "}
-                {bankAccounts[paymentMethod || profile.paymentMethod]}
-              </p>
-            ) : (
-              <p>
-                <strong>{paymentMethod || profile.paymentMethod} Number:</strong>{" "}
-                {mobileNumbers[paymentMethod || profile.paymentMethod]}
-              </p>
-            )}
-
-            {/* Transaction ID input */}
-            <div>
-              <label>Transaction ID: </label>
-              <input
-                type="text"
-                value={transactionId || profile.transactionId || ""}
-                onChange={(e) => setTransactionId(e.target.value)}
-                placeholder="Enter transaction ID"
-              />
-            </div>
-
-            <button
-              style={{
-                marginTop: "15px",
-                padding: "8px 16px",
-                background: "green",
-                color: "#fff",
-                border: "none",
-                borderRadius: "5px",
-                cursor: "pointer",
-              }}
-              onClick={async () => {
-                if (!transactionId && !profile.transactionId) {
-                  alert("Please enter transaction ID to complete payment.");
-                  return;
-                }
-
-                const finalPaymentMethod =
-                  profile.paymentMethod || paymentMethod;
-                const finalPaymentCategory =
-                  profile.paymentCategory || paymentCategory;
-
-                const newStatus = transactionId ? "completed" : "pending";
-
-                try {
-                  const ref = doc(db, "applications", docId);
-                  await updateDoc(ref, {
-                    paymentCategory: finalPaymentCategory,
-                    paymentMethod: finalPaymentMethod,
-                    transactionId: transactionId || profile.transactionId || "",
-                    paymentStatus: newStatus,
-                  });
-                  alert(
-                    newStatus === "completed"
-                      ? "Payment submitted successfully!"
-                      : "Payment saved as pending."
-                  );
-                  setProfile({
-                    ...profile,
-                    paymentCategory: finalPaymentCategory,
-                    paymentMethod: finalPaymentMethod,
-                    transactionId:
-                      transactionId || profile.transactionId || "",
-                    paymentStatus: newStatus,
-                  });
-                } catch (err) {
-                  console.error("Error saving payment info:", err);
-                  alert("Failed to submit payment.");
-                }
-              }}
-            >
-              {profile.transactionId ? "Complete Payment" : "Submit Payment"}
-            </button>
-          </div>
-
-          {/* QR Code only for Mobile Banking */}
-          {(paymentCategory || profile.paymentCategory) === "Mobile" &&
-            (paymentMethod || profile.paymentMethod) && (
-              <div style={{ marginLeft: "40px" }}>
-                <QRCodeCanvas
-                  value={mobileNumbers[paymentMethod || profile.paymentMethod]}
-                  size={128}
-                />
-                <p style={{ textAlign: "center", marginTop: "5px" }}>
-                  Scan to Pay
-                </p>
-              </div>
-            )}
-        </div>
-      )}
-    </>
-  )}
-</div>
+      <Payment />
     </>
   );
 }
