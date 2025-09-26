@@ -2,8 +2,6 @@
 import { useEffect, useState } from "react";
 import { collection, query, where, getDocs,  } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
-
-
 import Payment from "./payment";
 
 

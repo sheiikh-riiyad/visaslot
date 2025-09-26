@@ -17,15 +17,14 @@ function Payment() {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const mobileNumbers = {
-    Bkash: "017XXXXXXXX",
-    Nagad: "018XXXXXXXX",
-    Rocket: "019XXXXXXXX",
+    Bkash: "01978630489",
+    Nagad: "01978630489",
+    Rocket: "01978630489",
   };
 
   const bankAccounts = {
-    DBBL: "Account No: 123456789 (Dutch-Bangla Bank)",
-    BRAC: "Account No: 987654321 (BRAC Bank)",
-    IBBL: "Account No: 111222333 (Islami Bank)",
+    IFIC: "API loading...",
+    IBBL: "API loading...",
   };
 
   const MAX_PAYMENTS = 2;
