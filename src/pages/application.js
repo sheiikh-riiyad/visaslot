@@ -57,6 +57,9 @@ const [formData, setFormData] = useState({
   const [user, setUser] = useState(null); // logged-in user
   const [userApplications, setUserApplications] = useState([]); // user's applications
 
+  
+  
+
   // Listen for auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {

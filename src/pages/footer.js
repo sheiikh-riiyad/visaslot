@@ -16,7 +16,7 @@ function Footer() {
             </p>
             <p>Follow us:</p>
             <a href="https://www.facebook.com/AusHCBangladesh" target="_blank" rel="noreferrer">
-              <i className="bi bi-facebook fs-4 text-light"></i>
+              <i className="fa fa-facebook fs-4 text-light"></i>
             </a>
           </div>
 
@@ -51,23 +51,23 @@ function Footer() {
               <li><a href="https://www.homeaffairs.gov.au/" className="text-light">Department of Home Affairs</a></li>
               <li><a href="https://visit.australia.com/" className="text-light">Visit Australia</a></li>
               <li><a href="https://www.austrade.gov.au/" className="text-light">Austrade</a></li>
-              <li><a href="#" className="text-light">Prime Minister of Australia</a></li>
-              <li><a href="#" className="text-light">Minister for Foreign Affairs</a></li>
-              <li><a href="#" className="text-light">Minister for Trade and Tourism</a></li>
-              <li><a href="#" className="text-light">Minister for Pacific Island Affairs</a></li>
-              <li><a href="#" className="text-light">Minister for International Development</a></li>
-              <li><a href="#" className="text-light">Minister for Home Affairs</a></li>
+              <li><a href="https://www.pm.gov.au/" className="text-light">Prime Minister of Australia</a></li>
+              <li><a href="https://www.foreignminister.gov.au/" className="text-light">Minister for Foreign Affairs</a></li>
+              <li><a href="https://www.trademinister.gov.au/" className="text-light">Minister for Trade and Tourism</a></li>
+              <li><a href="https://ministers.dfat.gov.au/minister/pat-conroy-mp/home" className="text-light">Minister for Pacific Island Affairs</a></li>
+              <li><a href="https://ministers.dfat.gov.au/minister/anne-aly/home" className="text-light">Minister for International Development</a></li>
+              <li><a href="https://minister.homeaffairs.gov.au/" className="text-light">Minister for Home Affairs</a></li>
             </ul>
           </div>
         </div>
 
         {/* Bottom Bar */}
         <div className="text-center border-top pt-3 mt-3">
-          <a href="#" className="text-light me-3">Copyright</a>
-          <a href="#" className="text-light me-3">Privacy</a>
-          <a href="#" className="text-light me-3">Disclaimer</a>
-          <a href="#" className="text-light me-3">Accessibility</a>
-          <a href="#" className="text-light">Freedom of information</a>
+          <a href="https://www.dfat.gov.au/about-us/about-this-website/copyright" className="text-light me-3">Copyright</a>
+          <a href="https://www.dfat.gov.au/about-us/corporate/privacy" className="text-light me-3">Privacy</a>
+          <a href="https://www.dfat.gov.au/about-us/about-this-website/Pages/disclaimer" className="text-light me-3">Disclaimer</a>
+          <a href="https://www.dfat.gov.au/about-us/about-this-website/accessibility" className="text-light me-3">Accessibility</a>
+          <a href="https://www.dfat.gov.au/about-us/corporate/freedom-of-information" className="text-light">Freedom of information</a>
         </div>
       </div>
     </footer>

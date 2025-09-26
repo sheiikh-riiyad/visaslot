@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
-import { Button, Card, Form } from "react-bootstrap";
+
 import { QRCodeCanvas } from "qrcode.react";
 
 
