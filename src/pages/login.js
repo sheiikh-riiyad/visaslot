@@ -6,6 +6,7 @@ import { getFirestore, collection, query, where, getDocs } from "firebase/firest
 import { app } from "../firebaseConfig";
 import { useNavigate } from "react-router-dom"; // 🔑
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 const LoginSchema = Yup.object().shape({
   passport: Yup.string().required("Passport No. is required").min(5),
@@ -85,7 +86,7 @@ console.log("Current User:", currentUser); // Debugging line
           </Form>
         )}
       </Formik>
-      <a href="/register"> Open an Account</a>
+      <Button as={Link} to="/register" > Register an account</Button>
     </div>
   );
 }
