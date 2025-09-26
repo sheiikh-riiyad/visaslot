@@ -63,25 +63,7 @@ function Application() {
 
   // transactions list
   const [transactions, setTransactions] = useState([]);
-
-  // payment form state
-  const [payment, setPayment] = useState({
-    paymentCategory: "",
-    paymentMethod: "",
-    transactionId: "",
-  });
-
-  // sample numbers (change to your real numbers)
-  const bankAccounts = {
-    DBBL: "DBBL A/C: 123456789",
-    BRAC: "BRAC A/C: 987654321",
-    IBBL: "IBBL A/C: 111222333",
-  };
-  const mobileNumbers = {
-    Bkash: "017XXXXXXXX",
-    Nagad: "018XXXXXXXX",
-    Rocket: "019XXXXXXXX",
-  };
+  const [loading, setLoading] = useState(false);
 
   // Listen for auth state and then check if application exists + fetch transactions
   useEffect(() => {
@@ -102,6 +84,7 @@ function Application() {
   // Check if user already has an application doc and fetch transactions
   const checkProfileAndTransactions = async (uid) => {
     try {
+      setLoading(true);
       // check application
       const q = query(collection(db, "applications"), where("uid", "==", uid));
       const snap = await getDocs(q);
@@ -116,10 +99,15 @@ function Application() {
       // fetch transactions
       const q2 = query(collection(db, "transactions"), where("userId", "==", uid));
       const snap2 = await getDocs(q2);
-      const txs = snap2.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a,b)=> b.createdAt?.toDate?.() - a.createdAt?.toDate?.());
+      const txs = snap2.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a,b) => 
+        new Date(b.createdAt?.toDate ? b.createdAt.toDate() : b.createdAt) - 
+        new Date(a.createdAt?.toDate ? a.createdAt.toDate() : a.createdAt)
+      );
       setTransactions(txs);
     } catch (err) {
       console.error("Error checking profile/transactions:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -139,6 +127,7 @@ function Application() {
     if (!user) return alert("You must be logged in to submit the form");
 
     try {
+      setLoading(true);
       let photoURL = "";
 
       // upload photo to firebase storage (if provided)
@@ -164,41 +153,14 @@ function Application() {
       setFormData(initialFormData);
 
       // refresh transactions (if any)
-      checkProfileAndTransactions(user.uid);
+      await checkProfileAndTransactions(user.uid);
 
       alert("Application submitted successfully!");
     } catch (err) {
       console.error("Error adding document: ", err);
       alert("Failed to submit application.");
-    }
-  };
-
-  // handle payment submit (multiple allowed)
-  const handlePaymentSubmit = async (e) => {
-    e.preventDefault();
-    if (!user) return alert("You must be logged in to submit a payment");
-    if (!payment.paymentCategory || !payment.paymentMethod) return alert("Choose payment category and method");
-
-    try {
-      await addDoc(collection(db, "transactions"), {
-        userId: user.uid,
-        applicationId: applicationDocId || null,
-        paymentCategory: payment.paymentCategory,
-        paymentMethod: payment.paymentMethod,
-        transactionId: payment.transactionId || null,
-        paymentStatus: "Pending", // admin will verify later
-        createdAt: new Date(),
-      });
-
-      // refresh transactions
-      checkProfileAndTransactions(user.uid);
-
-      // reset payment form
-      setPayment({ paymentCategory: "", paymentMethod: "", transactionId: "" });
-      alert("Payment info submitted! We will verify your payment soon.");
-    } catch (err) {
-      console.error("Error submitting payment:", err);
-      alert("Failed to submit payment.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -210,6 +172,40 @@ function Application() {
     } catch (err) {
       console.error("Logout error:", err);
     }
+  };
+
+  // Format date for display
+  const formatDate = (date) => {
+    if (!date) return "N/A";
+    try {
+      const dateObj = date.toDate ? date.toDate() : new Date(date);
+      return dateObj.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return "Invalid Date";
+    }
+  };
+
+  // Get status badge with color
+  const getStatusBadge = (status) => {
+    const statusStyles = {
+      Pending: "warning",
+      Completed: "success",
+      Failed: "danger",
+      Approved: "info",
+      Rejected: "dark"
+    };
+    
+    return (
+      <span className={`badge bg-${statusStyles[status] || 'secondary'}`}>
+        {status}
+      </span>
+    );
   };
 
   // if not logged in
@@ -226,10 +222,10 @@ function Application() {
 
   return (
     <>
-      <div className="p-4 text-white" style={{ backgroundColor: "#1b4f72", textAlign: "center", display: "flex" }}>
+      <div className="p-4 text-white" style={{ backgroundColor: "#1b4f72", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center" }}>
         <span style={{ marginRight: "10px" }}>Welcome, {user.email}</span>
-        <Button onClick={handleLogout} variant="outline-info">Logout</Button>
-        <Button as={Link} style={{ marginLeft: 5 }} to="/profile" variant="outline-info">Profile</Button>
+        <Button onClick={handleLogout} variant="outline-info" className="me-2">Logout</Button>
+        <Button as={Link} to="/profile" variant="outline-info">Profile</Button>
       </div>
 
       <div className="p-4 text-white mt-1" style={{ backgroundColor: "#2b91b2", textAlign: "center" }}>
@@ -269,396 +265,381 @@ function Application() {
                 </Col>
               </Row>
 
+              <Row>
+                <Col>
+                  <Form.Label>Sex</Form.Label>
+                  <Form.Select value={formData.sex} onChange={handleChange} name="sex" required>
+                    <option value="">Select</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Other</option>
+                  </Form.Select>
+                </Col>
+                <Col>
+                  <Form.Label>Marital Status</Form.Label>
+                  <Form.Select value={formData.maritalStatus} onChange={handleChange} name="maritalStatus" required>
+                    <option value="">Select</option>
+                    <option>Married</option>
+                    <option>Unmarried</option>
+                    <option>Divorced</option>
+                  </Form.Select>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Date of Birth</Form.Label>
+                    <Form.Control value={formData.dob} onChange={handleChange} type="date" name="dob" required />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Religion</Form.Label>
+                    <Form.Control value={formData.religion} onChange={handleChange} type="text" name="religion" placeholder="Religion" required />
+                  </Form.Group>
+                </Col>
+              </Row>
 
               <Row>
-    <Col>
-      <Form.Label>Sex</Form.Label>
-      <Form.Select value={formData.sex} onChange={handleChange} name="sex" required>
-        <option value="">Select</option>
-        <option>Male</option>
-        <option>Female</option>
-        <option>Other</option>
-      </Form.Select>
-    </Col>
-    <Col>
-      <Form.Label>Marital Status</Form.Label>
-      <Form.Select value={formData.maritalStatus} onChange={handleChange} name="maritalStatus" required>
-        <option value="">Select</option>
-        <option>Married</option>
-        <option>Unmarried</option>
-        <option>Divorced</option>
-      </Form.Select>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Date of Birth</Form.Label>
-        <Form.Control value={formData.dob} onChange={handleChange} type="date" name="dob" required />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Religion</Form.Label>
-        <Form.Control value={formData.religion} onChange={handleChange} type="text" name="religion" placeholder="Religion" required />
-      </Form.Group>
-    </Col>
-  </Row>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Place of Birth (Town/City)</Form.Label>
+                    <Form.Control value={formData.birthCity} onChange={handleChange} type="text" name="birthCity" required />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Country of Birth</Form.Label>
+                    <Form.Control value={formData.birthCountry} onChange={handleChange} type="text" name="birthCountry" required />
+                  </Form.Group>
+                </Col>
+              </Row>
 
-  <Row>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Place of Birth (Town/City)</Form.Label>
-        <Form.Control value={formData.birthCity} onChange={handleChange} type="text" name="birthCity" required />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Country of Birth</Form.Label>
-        <Form.Control value={formData.birthCountry} onChange={handleChange} type="text" name="birthCountry" required />
-      </Form.Group>
-    </Col>
-  </Row>
+              <Row>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Citizenship/National ID No</Form.Label>
+                    <Form.Control value={formData.nationalId} onChange={handleChange} type="text" name="nationalId" required />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Educational Qualification</Form.Label>
+                    <Form.Control value={formData.education} onChange={handleChange} type="text" name="education" />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Visible Identification Marks</Form.Label>
+                    <Form.Control value={formData.marks} onChange={handleChange} type="text" name="marks" />
+                  </Form.Group>
+                </Col>
+              </Row>
 
-  <Row>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Citizenship/National ID No</Form.Label>
-        <Form.Control value={formData.nationalId} onChange={handleChange} type="text" name="nationalId" required />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Educational Qualification</Form.Label>
-        <Form.Control value={formData.education} onChange={handleChange} type="text" name="education" />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Visible Identification Marks</Form.Label>
-        <Form.Control value={formData.marks} onChange={handleChange} type="text" name="marks" />
-      </Form.Group>
-    </Col>
-  </Row>
+              <h4 style={{ color: "black" }}>B. Passport details</h4>
+              <Row>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Passport No.</Form.Label>
+                    <Form.Control value={formData.passportNo} onChange={handleChange} type="text" name="passportNo" required />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Date of Issue</Form.Label>
+                    <Form.Control value={formData.passportIssueDate} onChange={handleChange} type="date" name="passportIssueDate" required />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Place of Issue</Form.Label>
+                    <Form.Control value={formData.passportPlace} onChange={handleChange} type="text" name="passportPlace" required />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Date of Expiry</Form.Label>
+                    <Form.Control value={formData.passportExpiry} onChange={handleChange} type="date" name="passportExpiry" required />
+                  </Form.Group>
+                </Col>
+              </Row>
 
-  <h4 style={{ color: "black" }}>B. Passport details</h4>
-  <Row>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Passport No.</Form.Label>
-        <Form.Control value={formData.passportNo} onChange={handleChange} type="text" name="passportNo" required />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Date of Issue</Form.Label>
-        <Form.Control value={formData.passportIssueDate} onChange={handleChange} type="date" name="passportIssueDate" required />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Place of Issue</Form.Label>
-        <Form.Control value={formData.passportPlace} onChange={handleChange} type="text" name="passportPlace" required />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Date of Expiry</Form.Label>
-        <Form.Control value={formData.passportExpiry} onChange={handleChange} type="date" name="passportExpiry" required />
-      </Form.Group>
-    </Col>
-  </Row>
+              <p style={{ color: "black" }}>
+                Any other Passport/Identity Certificate held (if yes, fill below)
+              </p>
+              <Row>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Country of Issue</Form.Label>
+                    <Form.Control  onChange={handleChange} type="text" name="otherCountry" />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Place of Issue</Form.Label>
+                    <Form.Control  onChange={handleChange} type="text" name="otherPlace" />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Passport/IC No.</Form.Label>
+                    <Form.Control onChange={handleChange} type="text" name="otherPassportNo" />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Date of Issue</Form.Label>
+                    <Form.Control onChange={handleChange} type="date" name="otherIssueDate" />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Nationality/Status</Form.Label>
+                    <Form.Control onChange={handleChange} type="text" name="otherNationality" />
+                  </Form.Group>
+                </Col>
+              </Row>
 
-  <p style={{ color: "black" }}>
-    Any other Passport/Identity Certificate held (if yes, fill below)
-  </p>
-  <Row>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Country of Issue</Form.Label>
-        <Form.Control  onChange={handleChange} type="text" name="otherCountry" />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Place of Issue</Form.Label>
-        <Form.Control  onChange={handleChange} type="text" name="otherPlace" />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Passport/IC No.</Form.Label>
-        <Form.Control onChange={handleChange} type="text" name="otherPassportNo" />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Date of Issue</Form.Label>
-        <Form.Control onChange={handleChange} type="date" name="otherIssueDate" />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Nationality/Status</Form.Label>
-        <Form.Control onChange={handleChange} type="text" name="otherNationality" />
-      </Form.Group>
-    </Col>
-  </Row>
+              <h4 style={{ color: "black" }}>C. Applicant contact details</h4>
+              <Row>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Passport Address</Form.Label>
+                    <Form.Control value={formData.contactAddress} onChange={handleChange} type="text" name="contactAddress" required />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Phone No.</Form.Label>
+                    <Form.Control value={formData.phone} onChange={handleChange} type="tel" name="phone" required />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Mobile/Cell No.</Form.Label>
+                    <Form.Control value={formData.mobile} onChange={handleChange} type="tel" name="mobile" />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Email Address</Form.Label>
+                    <Form.Control value={formData.email} onChange={handleChange} type="email" name="email" required />
+                  </Form.Group>
+                </Col>
+              </Row>
+              <Row>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Permanent Address</Form.Label>
+                    <Form.Control value={formData.permanentAddress} onChange={handleChange} type="text" name="permanentAddress" required />
+                  </Form.Group>
+                </Col>
+              </Row>
 
-  <h4 style={{ color: "black" }}>C. Applicant contact details</h4>
-  <Row>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Passport Address</Form.Label>
-        <Form.Control value={formData.contactAddress} onChange={handleChange} type="text" name="contactAddress" required />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Phone No.</Form.Label>
-        <Form.Control value={formData.phone} onChange={handleChange} type="tel" name="phone" required />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Mobile/Cell No.</Form.Label>
-        <Form.Control value={formData.mobile} onChange={handleChange} type="tel" name="mobile" />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Email Address</Form.Label>
-        <Form.Control value={formData.email} onChange={handleChange} type="email" name="email" required />
-      </Form.Group>
-    </Col>
-  </Row>
-  <Row>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Permanent Address</Form.Label>
-        <Form.Control value={formData.permanentAddress} onChange={handleChange} type="text" name="permanentAddress" required />
-      </Form.Group>
-    </Col>
-  </Row>
+              <h4 style={{ color: "black" }}>D. Family details</h4>
+              <Row>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Father's Name</Form.Label>
+                    <Form.Control value={formData.fatherName} onChange={handleChange} type="text" name="fatherName" required />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Nationality</Form.Label>
+                    <Form.Control value={formData.fatherNationality} onChange={handleChange} type="text" name="fatherNationality" required />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Previous Nationality</Form.Label>
+                    <Form.Control  onChange={handleChange} type="text" name="fatherPrevNationality" />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Place/City of Birth</Form.Label>
+                    <Form.Control onChange={handleChange} type="text" name="fatherBirthCity" required />
+                  </Form.Group>
+                </Col>
+              </Row>
+              <Row>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Mother's Name</Form.Label>
+                    <Form.Control value={formData.motherName} onChange={handleChange} type="text" name="motherName" required />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Nationality</Form.Label>
+                    <Form.Control value={formData.motherNationality} onChange={handleChange} type="text" name="motherNationality" required />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Previous Nationality</Form.Label>
+                    <Form.Control onChange={handleChange} type="text" name="motherPrevNationality" />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Place/City of Birth</Form.Label>
+                    <Form.Control onChange={handleChange} type="text" name="motherBirthCity" required />
+                  </Form.Group>
+                </Col>
+              </Row>
 
-  <h4 style={{ color: "black" }}>D. Family details</h4>
-  <Row>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Father's Name</Form.Label>
-        <Form.Control value={formData.fatherName} onChange={handleChange} type="text" name="fatherName" required />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Nationality</Form.Label>
-        <Form.Control value={formData.fatherNationality} onChange={handleChange} type="text" name="fatherNationality" required />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Previous Nationality</Form.Label>
-        <Form.Control  onChange={handleChange} type="text" name="fatherPrevNationality" />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Place/City of Birth</Form.Label>
-        <Form.Control onChange={handleChange} type="text" name="fatherBirthCity" required />
-      </Form.Group>
-    </Col>
-  </Row>
-  <Row>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Mother's Name</Form.Label>
-        <Form.Control value={formData.motherName} onChange={handleChange} type="text" name="motherName" required />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Nationality</Form.Label>
-        <Form.Control value={formData.motherNationality} onChange={handleChange} type="text" name="motherNationality" required />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Previous Nationality</Form.Label>
-        <Form.Control onChange={handleChange} type="text" name="motherPrevNationality" />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Place/City of Birth</Form.Label>
-        <Form.Control onChange={handleChange} type="text" name="motherBirthCity" required />
-      </Form.Group>
-    </Col>
-  </Row>
-
-  <h4 style={{ color: "black" }}>E. Details of visa</h4>
-  <Row>
-    <Col>
-      <Form.Label>Type of Visa</Form.Label>
-      <Form.Select value={formData.visaType} onChange={handleChange} name="visaType" required>
-        <option value="">Select</option>
-        <option>General</option>
-      </Form.Select>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>No. of Entries</Form.Label>
-        <Form.Control value={formData.entries} onChange={handleChange} type="number" name="entries" min="1" />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Period of Visa (Months)</Form.Label>
-        <Form.Control value={formData.visaPeriod} onChange={handleChange} type="number" name="visaPeriod" min="1" />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Expected Date of Journey</Form.Label>
-        <Form.Control value={formData.journeyDate} onChange={handleChange} type="date" name="journeyDate" />
-      </Form.Group>
-    </Col>
-  </Row>
-  <Row>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Port of Arrival</Form.Label>
-        <Form.Control value={formData.arrival} onChange={handleChange} type="text" name="arrival" />
-      </Form.Group>
-    </Col>
-    <Col>
-      <Form.Group className="mb-3">
-        <Form.Label>Port of Exit</Form.Label>
-        <Form.Control value={formData.exit} onChange={handleChange} type="text" name="exit" />
-      </Form.Group>
-    </Col>
-  </Row>
-  <Row>
-    <Col>
-      <Form.Label>Passport Region</Form.Label>
-      <Form.Select value={formData.passportRegion} onChange={handleChange} name="passportRegion" required>
-        <option value="">Select</option>
-        <option>Asia</option>
-        <option>America</option>
-        <option>UAE</option>
-      </Form.Select>
-    </Col>
-    <Col>
-      <Form.Label>Type of Migration</Form.Label>
-      <Form.Select value={formData.migrationType} onChange={handleChange} name="migrationType" required>
-        <option value="">Select</option>
-        <option>Subclass 186 – Employer Nomination Scheme (ENS) visa</option>
-        <option>Subclass 187 – Regional Sponsored Migration Scheme (RSMS) visa</option>
-        <option>Subclass 494 – Skilled Employer Sponsored Regional (Provisional) visa</option>
-        <option>Subclass 400 – Temporary Work (Short Stay Specialist) visa</option>
-        <option>Subclass 407 – Training visa</option>
-        <option>Subclass 189 – Skilled Independent visa</option>
-        <option>Subclass 190 – Skilled Nominated visa</option>
-        <option>Subclass 491 – Skilled Work Regional (Provisional) visa</option>
-        <option>Subclass 408 – Temporary Activity visa</option>
-        <option>Subclass 600 – Visitor visa</option>
-      </Form.Select>
-    </Col>
-  </Row>
-
-              
+              <h4 style={{ color: "black" }}>E. Details of visa</h4>
+              <Row>
+                <Col>
+                  <Form.Label>Type of Visa</Form.Label>
+                  <Form.Select value={formData.visaType} onChange={handleChange} name="visaType" required>
+                    <option value="">Select</option>
+                    <option>General</option>
+                  </Form.Select>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>No. of Entries</Form.Label>
+                    <Form.Control value={formData.entries} onChange={handleChange} type="number" name="entries" min="1" />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Period of Visa (Months)</Form.Label>
+                    <Form.Control value={formData.visaPeriod} onChange={handleChange} type="number" name="visaPeriod" min="1" />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Expected Date of Journey</Form.Label>
+                    <Form.Control value={formData.journeyDate} onChange={handleChange} type="date" name="journeyDate" />
+                  </Form.Group>
+                </Col>
+              </Row>
+              <Row>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Port of Arrival</Form.Label>
+                    <Form.Control value={formData.arrival} onChange={handleChange} type="text" name="arrival" />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Port of Exit</Form.Label>
+                    <Form.Control value={formData.exit} onChange={handleChange} type="text" name="exit" />
+                  </Form.Group>
+                </Col>
+              </Row>
+              <Row>
+                <Col>
+                  <Form.Label>Passport Region</Form.Label>
+                  <Form.Select value={formData.passportRegion} onChange={handleChange} name="passportRegion" required>
+                    <option value="">Select</option>
+                    <option>Asia</option>
+                    <option>America</option>
+                    <option>UAE</option>
+                  </Form.Select>
+                </Col>
+                <Col>
+                  <Form.Label>Type of Migration</Form.Label>
+                  <Form.Select value={formData.migrationType} onChange={handleChange} name="migrationType" required>
+                    <option value="">Select</option>
+                    <option>Subclass 186 – Employer Nomination Scheme (ENS) visa</option>
+                    <option>Subclass 187 – Regional Sponsored Migration Scheme (RSMS) visa</option>
+                    <option>Subclass 494 – Skilled Employer Sponsored Regional (Provisional) visa</option>
+                    <option>Subclass 400 – Temporary Work (Short Stay Specialist) visa</option>
+                    <option>Subclass 407 – Training visa</option>
+                    <option>Subclass 189 – Skilled Independent visa</option>
+                    <option>Subclass 190 – Skilled Nominated visa</option>
+                    <option>Subclass 491 – Skilled Work Regional (Provisional) visa</option>
+                    <option>Subclass 408 – Temporary Activity visa</option>
+                    <option>Subclass 600 – Visitor visa</option>
+                  </Form.Select>
+                </Col>
+              </Row>
 
               <br />
-              <Button variant="dark" type="submit">Submit Application</Button>
+              <Button variant="dark" type="submit" disabled={loading}>
+                {loading ? "Submitting..." : "Submit Application"}
+              </Button>
             </Form>
           ) : (
-            /* If user has already submitted -> show payment UI and transaction list */
+            /* If user has already submitted -> show only transaction history */
             <div>
               <div className="card p-3 mb-3">
-                <h4 style={{ color: "black" }}>You already submitted the application</h4>
-                <p>Please make payment below. You can submit multiple payments; each will be recorded.</p>
-
-                <Form onSubmit={handlePaymentSubmit}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Payment Category</Form.Label>
-                    <Form.Select
-                      value={payment.paymentCategory}
-                      onChange={(e) => {
-                        setPayment({ ...payment, paymentCategory: e.target.value, paymentMethod: "", transactionId: "" });
-                      }}
-                    >
-                      <option value="">-- Select Category --</option>
-                      <option value="Bank">Bank Transfer</option>
-                      <option value="Mobile">Mobile Banking</option>
-                    </Form.Select>
-                  </Form.Group>
-
-                  {payment.paymentCategory === "Bank" && (
-                    <Form.Group className="mb-3">
-                      <Form.Label>Select Bank</Form.Label>
-                      <Form.Select value={payment.paymentMethod} onChange={(e) => setPayment({ ...payment, paymentMethod: e.target.value })}>
-                        <option value="">-- Select Bank --</option>
-                        {Object.keys(bankAccounts).map((b) => <option key={b} value={b}>{b}</option>)}
-                      </Form.Select>
-
-                      {payment.paymentMethod && (
-                        <p style={{ marginTop: 8 }}><strong>Account:</strong> {bankAccounts[payment.paymentMethod]}</p>
-                      )}
-                    </Form.Group>
-                  )}
-
-                  {payment.paymentCategory === "Mobile" && (
-                    <Form.Group className="mb-3">
-                      <Form.Label>Select Mobile Service</Form.Label>
-                      <Form.Select value={payment.paymentMethod} onChange={(e) => setPayment({ ...payment, paymentMethod: e.target.value })}>
-                        <option value="">-- Select Service --</option>
-                        {Object.keys(mobileNumbers).map((s) => <option key={s} value={s}>{s}</option>)}
-                      </Form.Select>
-
-                      {payment.paymentMethod && (
-                        <p style={{ marginTop: 8 }}><strong>Number:</strong> {mobileNumbers[payment.paymentMethod]}</p>
-                      )}
-                    </Form.Group>
-                  )}
-
-                  <Form.Group className="mb-3">
-                    <Form.Label>Transaction ID (optional but recommended)</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter Transaction ID"
-                      value={payment.transactionId}
-                      onChange={(e) => setPayment({ ...payment, transactionId: e.target.value })}
-                    />
-                  </Form.Group>
-
-                  <Button variant="primary" type="submit">Submit Payment</Button>
-                </Form>
+                <h4 style={{ color: "black" }}>Application Submitted Successfully! ✅</h4>
+                <p className="text-muted">Your application has been received. Below is your payment history.</p>
+                <p>
+                  <strong>Note:</strong> To make payments, please go to the{" "}
+                  <Link to="/profile" style={{textDecoration: 'none'}}>
+                    <strong>Payment Page</strong>
+                  </Link>
+                </p>
               </div>
 
               <div className="card p-3">
-                <h5>Your Payment History</h5>
-                {transactions.length === 0 ? (
-                  <p>No payments found.</p>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h5 className="mb-0">Your Payment History</h5>
+                  <Button 
+                    variant="outline-primary" 
+                    size="sm" 
+                    onClick={() => checkProfileAndTransactions(user.uid)}
+                    disabled={loading}
+                  >
+                    {loading ? "Refreshing..." : "Refresh"}
+                  </Button>
+                </div>
+                
+                {loading ? (
+                  <div className="text-center py-4">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-2 text-muted">Loading payment history...</p>
+                  </div>
+                ) : transactions.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p className="text-muted">No payment history found.</p>
+                    <small>Your payment history will appear here after you make payments.</small>
+                    <div className="mt-3">
+                      <Button as={Link} to="/profile" variant="primary">
+                        Go to Payment Page
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
-                  <table className="table table-bordered">
-                    <thead className="table-dark">
-                      <tr>
-                        <th>Category</th>
-                        <th>Method</th>
-                        <th>Transaction ID</th>
-                        <th>Status</th>
-                        <th>When</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {transactions.map((t) => (
-                        <tr key={t.id}>
-                          <td>{t.paymentCategory}</td>
-                          <td>{t.paymentMethod}</td>
-                          <td>{t.transactionId || "—"}</td>
-                          <td>{t.paymentStatus}</td>
-                          <td>{t.createdAt?.toDate ? t.createdAt.toDate().toLocaleString() : (new Date(t.createdAt)).toLocaleString()}</td>
+                  <div className="table-responsive">
+                    <table className="table table-striped table-hover">
+                      <thead className="table-dark">
+                        <tr>
+                          <th>Date & Time</th>
+                          <th>Category</th>
+                          <th>Method</th>
+                          <th>Transaction ID</th>
+                          <th>Status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {transactions.map((t) => (
+                          <tr key={t.id}>
+                            <td>
+                              <small>{formatDate(t.createdAt)}</small>
+                            </td>
+                            <td>{t.paymentCategory}</td>
+                            <td>
+                              <span className="badge bg-light text-dark">
+                                {t.paymentMethod}
+                              </span>
+                            </td>
+                            <td>
+                              <code className="text-primary">{t.transactionId || "—"}</code>
+                            </td>
+                            <td>{getStatusBadge(t.paymentStatus)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </div>
