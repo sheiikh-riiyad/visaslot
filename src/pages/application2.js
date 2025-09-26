@@ -1,4 +1,3 @@
-// src/pages/application.js
 import { useState, useEffect } from "react";
 import { Row, Col, Form, Button } from "react-bootstrap";
 import { Link } from "react-router-dom";
@@ -7,123 +6,89 @@ import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
-const initialFormData = {
-  surname: "",
-  name: "",
-  previousName: "",
-  sex: "",
-  maritalStatus: "",
-  dob: "",
-  religion: "",
-  birthCity: "",
-  birthCountry: "",
-  nationalId: "",
-  education: "",
-  marks: "",
-  passportNo: "",
-  passportIssueDate: "",
-  passportPlace: "",
-  passportExpiry: "",
-  otherCountry: "",
-  otherPlace: "",
-  otherPassportNo: "",
-  otherIssueDate: "",
-  otherNationality: "",
-  contactAddress: "",
-  phone: "",
-  mobile: "",
-  email: "",
-  permanentAddress: "",
-  fatherName: "",
-  fatherNationality: "",
-  fatherPrevNationality: "",
-  fatherBirthCity: "",
-  motherName: "",
-  motherNationality: "",
-  motherPrevNationality: "",
-  motherBirthCity: "",
-  visaType: "",
-  entries: "",
-  visaPeriod: "",
-  journeyDate: "",
-  arrival: "",
-  exit: "",
-  passportRegion: "",
-  migrationType: "",
-  photo: null,
-};
 
 function Application() {
-  const [formData, setFormData] = useState(initialFormData);
-  const [user, setUser] = useState(null);
-
-  // whether user already submitted an application doc
-  const [hasProfile, setHasProfile] = useState(false);
-  const [applicationDocId, setApplicationDocId] = useState(null);
-
-  // transactions list
-  const [transactions, setTransactions] = useState([]);
-
-  // payment form state
-  const [payment, setPayment] = useState({
-    paymentCategory: "",
-    paymentMethod: "",
-    transactionId: "",
+const [formData, setFormData] = useState({
+    surname: "",
+    name: "",
+    previousName: "",
+    sex: "",
+    maritalStatus: "",
+    dob: "",
+    religion: "",
+    birthCity: "",
+    birthCountry: "",
+    nationalId: "",
+    education: "",
+    marks: "",
+    passportNo: "",
+    passportIssueDate: "",
+    passportPlace: "",
+    passportExpiry: "",
+    otherCountry: "",
+    otherPlace: "",
+    otherPassportNo: "",
+    otherIssueDate: "",
+    otherNationality: "",
+    contactAddress: "",
+    phone: "",
+    mobile: "",
+    email: "",
+    permanentAddress: "",
+    fatherName: "",
+    fatherNationality: "",
+    fatherPrevNationality: "",
+    fatherBirthCity: "",
+    motherName: "",
+    motherNationality: "",
+    motherPrevNationality: "",
+    motherBirthCity: "",
+    visaType: "",
+    entries: "",
+    visaPeriod: "",
+    journeyDate: "",
+    arrival: "",
+    exit: "",
+    passportRegion: "",
+    migrationType: "",
+    photo: null,
   });
 
-  // sample numbers (change to your real numbers)
-  const bankAccounts = {
-    DBBL: "DBBL A/C: 123456789",
-    BRAC: "BRAC A/C: 987654321",
-    IBBL: "IBBL A/C: 111222333",
-  };
-  const mobileNumbers = {
-    Bkash: "017XXXXXXXX",
-    Nagad: "018XXXXXXXX",
-    Rocket: "019XXXXXXXX",
-  };
 
-  // Listen for auth state and then check if application exists + fetch transactions
+
+
+
+
+  
+  
+
+  const [user, setUser] = useState(null); // logged-in user
+  const [userApplications, setUserApplications] = useState([]); // user's applications
+
+  
+  
+
+  // Listen for auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      if (currentUser) {
-        checkProfileAndTransactions(currentUser.uid);
-      } else {
-        // reset state when logged out
-        setHasProfile(false);
-        setApplicationDocId(null);
-        setTransactions([]);
-      }
+      if (currentUser) fetchUserApplications(currentUser.uid);
     });
     return () => unsubscribe();
   }, []);
 
-  // Check if user already has an application doc and fetch transactions
-  const checkProfileAndTransactions = async (uid) => {
-    try {
-      // check application
-      const q = query(collection(db, "applications"), where("uid", "==", uid));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        setHasProfile(true);
-        setApplicationDocId(snap.docs[0].id);
-      } else {
-        setHasProfile(false);
-        setApplicationDocId(null);
-      }
-
-      // fetch transactions
-      const q2 = query(collection(db, "transactions"), where("userId", "==", uid));
-      const snap2 = await getDocs(q2);
-      const txs = snap2.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a,b)=> b.createdAt?.toDate?.() - a.createdAt?.toDate?.());
-      setTransactions(txs);
-    } catch (err) {
-      console.error("Error checking profile/transactions:", err);
-    }
+  // Fetch applications of logged-in user
+  const fetchUserApplications = async (uid) => {
+    const q = query(collection(db, "applications"), where("uid", "==", uid));
+    const querySnapshot = await getDocs(q);
+    const apps = [];
+    querySnapshot.forEach((doc) => {
+      apps.push({ id: doc.id, ...doc.data() });
+    });
+    setUserApplications(apps);
   };
 
-  // handle text/file inputs for application form
+  // Update form state
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (files) {
@@ -133,7 +98,7 @@ function Application() {
     }
   };
 
-  // Submit application (only once)
+  // Submit form to Firestore
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) return alert("You must be logged in to submit the form");
@@ -141,7 +106,7 @@ function Application() {
     try {
       let photoURL = "";
 
-      // upload photo to firebase storage (if provided)
+      // Upload photo if provided
       if (formData.photo) {
         const storage = getStorage();
         const storageRef = ref(storage, `photos/${Date.now()}_${formData.photo.name}`);
@@ -149,56 +114,65 @@ function Application() {
         photoURL = await getDownloadURL(storageRef);
       }
 
-      // save application doc
-      const docRef = await addDoc(collection(db, "applications"), {
+      // Save form with user's UID
+      await addDoc(collection(db, "applications"), {
         ...formData,
         photo: photoURL,
         uid: user.uid,
         createdAt: new Date(),
       });
 
-      setHasProfile(true);
-      setApplicationDocId(docRef.id);
-
-      // reset form
-      setFormData(initialFormData);
-
-      // refresh transactions (if any)
-      checkProfileAndTransactions(user.uid);
-
       alert("Application submitted successfully!");
+      setFormData({
+        surname: "",
+        name: "",
+        previousName: "",
+        sex: "",
+        maritalStatus: "",
+        dob: "",
+        religion: "",
+        birthCity: "",
+        birthCountry: "",
+        nationalId: "",
+        education: "",
+        marks: "",
+        passportNo: "",
+        passportIssueDate: "",
+        passportPlace: "",
+        passportExpiry: "",
+        otherCountry: "",
+        otherPlace: "",
+        otherPassportNo: "",
+        otherIssueDate: "",
+        otherNationality: "",
+        contactAddress: "",
+        phone: "",
+        mobile: "",
+        email: "",
+        permanentAddress: "",
+        fatherName: "",
+        fatherNationality: "",
+        fatherPrevNationality: "",
+        fatherBirthCity: "",
+        motherName: "",
+        motherNationality: "",
+        motherPrevNationality: "",
+        motherBirthCity: "",
+        visaType: "",
+        entries: "",
+        visaPeriod: "",
+        journeyDate: "",
+        arrival: "",
+        exit: "",
+        passportRegion: "",
+        migrationType: "",
+        photo: null,
+      });
+
+      fetchUserApplications(user.uid); // refresh user's applications
     } catch (err) {
       console.error("Error adding document: ", err);
       alert("Failed to submit application.");
-    }
-  };
-
-  // handle payment submit (multiple allowed)
-  const handlePaymentSubmit = async (e) => {
-    e.preventDefault();
-    if (!user) return alert("You must be logged in to submit a payment");
-    if (!payment.paymentCategory || !payment.paymentMethod) return alert("Choose payment category and method");
-
-    try {
-      await addDoc(collection(db, "transactions"), {
-        userId: user.uid,
-        applicationId: applicationDocId || null,
-        paymentCategory: payment.paymentCategory,
-        paymentMethod: payment.paymentMethod,
-        transactionId: payment.transactionId || null,
-        paymentStatus: "Pending", // admin will verify later
-        createdAt: new Date(),
-      });
-
-      // refresh transactions
-      checkProfileAndTransactions(user.uid);
-
-      // reset payment form
-      setPayment({ paymentCategory: "", paymentMethod: "", transactionId: "" });
-      alert("Payment info submitted! We will verify your payment soon.");
-    } catch (err) {
-      console.error("Error submitting payment:", err);
-      alert("Failed to submit payment.");
     }
   };
 
@@ -212,7 +186,7 @@ function Application() {
     }
   };
 
-  // if not logged in
+  // If user is not logged in
   if (!user) {
     return (
       <div style={{ textAlign: "center", padding: "50px" }}>
@@ -224,53 +198,78 @@ function Application() {
     );
   }
 
+
+
+
+
+
+    
+
+
+
+
+
   return (
     <>
-      <div className="p-4 text-white" style={{ backgroundColor: "#1b4f72", textAlign: "center", display: "flex" }}>
-        <span style={{ marginRight: "10px" }}>Welcome, {user.email}</span>
-        <Button onClick={handleLogout} variant="outline-info">Logout</Button>
-        <Button as={Link} style={{ marginLeft: 5 }} to="/profile" variant="outline-info">Profile</Button>
-      </div>
 
-      <div className="p-4 text-white mt-1" style={{ backgroundColor: "#2b91b2", textAlign: "center" }}>
+    <div className="p-4  text-white" style={{ backgroundColor: "#1b4f72", textAlign:'center', display:'flex',}}>
+         {user ? (
+          <>
+            <span style={{ marginRight: "10px" }}>Welcome, {user.email}</span>
+            <Button onClick={handleLogout} variant="outline-info">Logout</Button>
+          </>
+        ) : (
+          <Button as={Link} to="/authorize" variant="outline-info">Login</Button>
+        )}
+          <Button as={Link} style={{marginLeft: 5}}  to="/profile" variant="outline-info">Profile</Button>
+    </div>
+
+      <div className="p-4  text-white mt-1" style={{ backgroundColor: "#2b91b2", textAlign:'center' }}>
         <h2>Visa and Migration</h2>
         <p>Information about visa and migration services</p>
 
-        <div style={{ maxWidth: 1100, margin: "20px auto", textAlign: "left" }}>
-          {/* If user has not submitted the application -> show the big form */}
-          {!hasProfile ? (
-            <Form onSubmit={handleSubmit}>
-              <h4 style={{ color: "black" }}>A. Personal details (Asian passport)</h4>
+          
 
-              <Row>
-                <Col>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Photo</Form.Label>
-                    <Form.Control onChange={handleChange} type="file" accept="image/*" name="photo" required />
-                  </Form.Group>
-                </Col>
-                <Col>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Surname</Form.Label>
-                    <Form.Control value={formData.surname} onChange={handleChange} type="text" name="surname" placeholder="Surname" required />
-                  </Form.Group>
-                </Col>
-                <Col>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Name</Form.Label>
-                    <Form.Control value={formData.name} onChange={handleChange} type="text" name="name" placeholder="Name" required />
-                  </Form.Group>
-                </Col>
-                <Col>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Previous/Other Name</Form.Label>
-                    <Form.Control value={formData.previousName} onChange={handleChange} type="text" name="previousName" placeholder="Previous/Other Name" />
-                  </Form.Group>
-                </Col>
-              </Row>
+          <div>
+                <Form onSubmit={(e) => e.preventDefault()}>
+  <h4 style={{ color: "black" }}>A. Personal details (Asian passport)</h4>
 
+  <Row>
+    <Col>
+      <Form.Group className="mb-3">
+        <Form.Label>Photo</Form.Label>
 
-              <Row>
+        <Form.Control 
+            onChange={handleChange} 
+            type="file" 
+            accept="image/*" 
+            name="photo" 
+            required 
+        />
+
+      </Form.Group>
+    </Col>
+    <Col>
+      <Form.Group className="mb-3">
+        <Form.Label>Surname</Form.Label>
+        <Form.Control value={formData.surname} onChange={handleChange} type="text" name="surname" placeholder="Surname" required />
+      </Form.Group>
+    </Col>
+    <Col>
+      <Form.Group className="mb-3">
+        <Form.Label>Name</Form.Label>
+        <Form.Control value={formData.name} onChange={handleChange} type="text" name="name" placeholder="Name" required />
+      </Form.Group>
+    </Col>
+    <Col>
+      <Form.Group className="mb-3">
+        <Form.Label>Previous/Other Name</Form.Label>
+        <Form.Control value={formData.previousName} onChange={handleChange} type="text" name="previousName" placeholder="Previous/Other Name" />
+      </Form.Group>
+    </Col>
+  </Row>
+
+  <Row>
     <Col>
       <Form.Label>Sex</Form.Label>
       <Form.Select value={formData.sex} onChange={handleChange} name="sex" required>
@@ -563,110 +562,22 @@ function Application() {
     </Col>
   </Row>
 
-              
+  <br />
+  <Button onClick={handleSubmit} variant="dark" type="submit">Submit</Button>
+</Form>
 
-              <br />
-              <Button variant="dark" type="submit">Submit Application</Button>
-            </Form>
-          ) : (
-            /* If user has already submitted -> show payment UI and transaction list */
-            <div>
-              <div className="card p-3 mb-3">
-                <h4 style={{ color: "black" }}>You already submitted the application</h4>
-                <p>Please make payment below. You can submit multiple payments; each will be recorded.</p>
 
-                <Form onSubmit={handlePaymentSubmit}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Payment Category</Form.Label>
-                    <Form.Select
-                      value={payment.paymentCategory}
-                      onChange={(e) => {
-                        setPayment({ ...payment, paymentCategory: e.target.value, paymentMethod: "", transactionId: "" });
-                      }}
-                    >
-                      <option value="">-- Select Category --</option>
-                      <option value="Bank">Bank Transfer</option>
-                      <option value="Mobile">Mobile Banking</option>
-                    </Form.Select>
-                  </Form.Group>
+          
 
-                  {payment.paymentCategory === "Bank" && (
-                    <Form.Group className="mb-3">
-                      <Form.Label>Select Bank</Form.Label>
-                      <Form.Select value={payment.paymentMethod} onChange={(e) => setPayment({ ...payment, paymentMethod: e.target.value })}>
-                        <option value="">-- Select Bank --</option>
-                        {Object.keys(bankAccounts).map((b) => <option key={b} value={b}>{b}</option>)}
-                      </Form.Select>
+          </div>
 
-                      {payment.paymentMethod && (
-                        <p style={{ marginTop: 8 }}><strong>Account:</strong> {bankAccounts[payment.paymentMethod]}</p>
-                      )}
-                    </Form.Group>
-                  )}
+    
 
-                  {payment.paymentCategory === "Mobile" && (
-                    <Form.Group className="mb-3">
-                      <Form.Label>Select Mobile Service</Form.Label>
-                      <Form.Select value={payment.paymentMethod} onChange={(e) => setPayment({ ...payment, paymentMethod: e.target.value })}>
-                        <option value="">-- Select Service --</option>
-                        {Object.keys(mobileNumbers).map((s) => <option key={s} value={s}>{s}</option>)}
-                      </Form.Select>
 
-                      {payment.paymentMethod && (
-                        <p style={{ marginTop: 8 }}><strong>Number:</strong> {mobileNumbers[payment.paymentMethod]}</p>
-                      )}
-                    </Form.Group>
-                  )}
-
-                  <Form.Group className="mb-3">
-                    <Form.Label>Transaction ID (optional but recommended)</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter Transaction ID"
-                      value={payment.transactionId}
-                      onChange={(e) => setPayment({ ...payment, transactionId: e.target.value })}
-                    />
-                  </Form.Group>
-
-                  <Button variant="primary" type="submit">Submit Payment</Button>
-                </Form>
-              </div>
-
-              <div className="card p-3">
-                <h5>Your Payment History</h5>
-                {transactions.length === 0 ? (
-                  <p>No payments found.</p>
-                ) : (
-                  <table className="table table-bordered">
-                    <thead className="table-dark">
-                      <tr>
-                        <th>Category</th>
-                        <th>Method</th>
-                        <th>Transaction ID</th>
-                        <th>Status</th>
-                        <th>When</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {transactions.map((t) => (
-                        <tr key={t.id}>
-                          <td>{t.paymentCategory}</td>
-                          <td>{t.paymentMethod}</td>
-                          <td>{t.transactionId || "—"}</td>
-                          <td>{t.paymentStatus}</td>
-                          <td>{t.createdAt?.toDate ? t.createdAt.toDate().toLocaleString() : (new Date(t.createdAt)).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
       </div>
+
     </>
-  );
+  )
 }
 
-export default Application;
+export default Application
