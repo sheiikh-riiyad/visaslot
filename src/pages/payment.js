@@ -218,38 +218,38 @@ function Payment() {
   };
 
   // Initialize Firestore with test data
-  const initializeTestData = async () => {
-    if (!user) return;
+  // const initializeTestData = async () => {
+  //   if (!user) return;
     
-    try {
-      setLoading(true);
-      // Create a test transaction
-      const testPaymentData = {
-        userId: user.uid,
-        applicationId: "test_app_123",
-        paymentCategory: "Mobile",
-        paymentMethod: "Bkash",
-        transactionId: "TEST_" + Math.random().toString(36).substr(2, 9),
-        paymentStatus: "Pending",
-        createdAt: new Date().toISOString(),
-        amount: "Mobile Payment",
-        paymentNumber: mobileNumbers.Bkash,
-        userEmail: user.email || "test@example.com"
-      };
+  //   try {
+  //     setLoading(true);
+  //     // Create a test transaction
+  //     const testPaymentData = {
+  //       userId: user.uid,
+  //       applicationId: "test_app_123",
+  //       paymentCategory: "Mobile",
+  //       paymentMethod: "Bkash",
+  //       transactionId: "TEST_" + Math.random().toString(36).substr(2, 9),
+  //       paymentStatus: "Pending",
+  //       createdAt: new Date().toISOString(),
+  //       amount: "Mobile Payment",
+  //       paymentNumber: mobileNumbers.Bkash,
+  //       userEmail: user.email || "test@example.com"
+  //     };
 
-      const testDocId = `test_${user.uid}_${Date.now()}`;
-      await setDoc(doc(db, "transactions", testDocId), testPaymentData);
+  //     const testDocId = `test_${user.uid}_${Date.now()}`;
+  //     await setDoc(doc(db, "transactions", testDocId), testPaymentData);
       
-      setMessage("✅ Test transaction added! Refreshing history...");
-      await fetchTransactionHistory(user.uid);
+  //     setMessage("✅ Test transaction added! Refreshing history...");
+  //     await fetchTransactionHistory(user.uid);
       
-    } catch (error) {
-      console.error("Test data error:", error);
-      setMessage("❌ Failed to add test data: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //   } catch (error) {
+  //     console.error("Test data error:", error);
+  //     setMessage("❌ Failed to add test data: " + error.message);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   return (
     <div style={{ maxWidth: 900, margin: "20px auto", padding: 20 }}>
@@ -260,9 +260,9 @@ function Payment() {
         <button onClick={() => fetchTransactionHistory(user?.uid)} className="btn btn-sm btn-outline-primary me-2">
           Refresh History
         </button>
-        <button onClick={initializeTestData} className="btn btn-sm btn-outline-secondary">
+        {/* <button onClick={initializeTestData} className="btn btn-sm btn-outline-secondary">
           Add Test Transaction
-        </button>
+        </button> */}
       </div>
 
       {!user ? (
@@ -425,12 +425,12 @@ function Payment() {
                   <p className="text-muted">No transactions found.</p>
                   <small>Your payment history will appear here after you make a payment.</small>
                   <div className="mt-3">
-                    <button 
+                    {/* <button 
                       onClick={initializeTestData} 
                       className="btn btn-sm btn-outline-primary"
                     >
                       Add Test Transaction
-                    </button>
+                    </button> */}
                   </div>
                 </div>
               ) : (
