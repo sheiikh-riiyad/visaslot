@@ -17,8 +17,8 @@ const db = getFirestore(app);
 
 function Login() {
   const navigate = useNavigate(); // 🔑
-  const [currentUser, setCurrentUser] = useState(null); // optional to track user
-
+  const [currentUser, setCurrentUser] = useState(null); 
+console.log("Current User:", currentUser); // Debugging line
   return (
     <div style={{ textAlign: "center" }}>
       <h2>Login</h2>

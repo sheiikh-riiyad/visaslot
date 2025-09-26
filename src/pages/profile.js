@@ -13,6 +13,7 @@ function Profile() {
   const [profile, setProfile] = useState(null);
 
   const [docId, setDocId] = useState(""); // Save document ID
+  console.log("Document ID:", docId); // Debugging line
 
 
   
