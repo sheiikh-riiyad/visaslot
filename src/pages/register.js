@@ -5,6 +5,7 @@ import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { getFirestore, doc, setDoc } from "firebase/firestore";
 import { app } from "../firebaseConfig"; // your config
 import { useNavigate } from "react-router-dom"; // 🔑
+import { Link } from "react-router-dom";
 
 const RegisterSchema = Yup.object().shape({
   passport: Yup.string().required("Passport No. is required").min(5),
@@ -140,7 +141,7 @@ function Register() {
           </Form>
         )}
       </Formik>
-      <a href="/authorize"> Go to Login</a>
+      <Button as={Link} to="/authorize"> Go to Login</Button>
     </div>
   );
 }
