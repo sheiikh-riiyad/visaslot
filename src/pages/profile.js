@@ -1,168 +1,426 @@
 // src/pages/Profile.js
 import { useEffect, useState } from "react";
-import { collection, query, where, getDocs,  } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
 import Payment from "./payment";
-
-
-
+import { Card, Row, Col, Container, Badge, Alert } from "react-bootstrap";
 
 function Profile() {
   const [profile, setProfile] = useState(null);
-
-  const [docId, setDocId] = useState(""); // Save document ID
-  console.log("Document ID:", docId); // Debugging line
-
-
-  
-
+  const [docId, setDocId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          setError("User not authenticated");
+          setLoading(false);
+          return;
+        }
 
-      const q = query(
-        collection(db, "applications"),
-        where("email", "==", user.email)
-      );
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        setProfile(snap.docs[0].data());
-        setDocId(snap.docs[0].id); // Save Firestore document ID
+        const q = query(
+          collection(db, "applications"),
+          where("uid", "==", user.uid)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          setProfile(snap.docs[0].data());
+          setDocId(snap.docs[0].id);
+        } else {
+          setError("No application found for this user");
+        }
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+        setError("Failed to load profile data");
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchProfile();
   }, []);
 
-// const handlePaymentSubmit = async () => {
-//   if (!paymentMethod || !transactionId) {
-//     alert("Please complete all fields");
-//     return;
-//   }
+  if (loading) {
+    return (
+      <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: "60vh" }}>
+        <div className="text-center">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-2">Loading profile...</p>
+        </div>
+      </Container>
+    );
+  }
 
-//   if (profile.paymentStatus === "completed") {
-//     alert("Payment already submitted!");
-//     return;
-//   }
+  if (error) {
+    return (
+      <Container className="mt-4">
+        <Alert variant="danger">
+          <Alert.Heading>Error</Alert.Heading>
+          <p>{error}</p>
+        </Alert>
+      </Container>
+    );
+  }
 
-//   try {
-//     const ref = doc(db, "applications", docId);
-//     await updateDoc(ref, { 
-//       paymentCategory, 
-//       paymentMethod, 
-//       transactionId,
-//       paymentStatus: "completed"
-//     });
-//     alert("Payment info submitted successfully!");
-//   } catch (err) {
-//     console.error("Error saving payment info:", err);
-//     alert("Failed to submit payment.");
-//   }
-// };
+  if (!profile) {
+    return (
+      <Container className="mt-4">
+        <Alert variant="warning">
+          <Alert.Heading>No Application Found</Alert.Heading>
+          <p>You haven't submitted an application yet. Please complete the application form first.</p>
+        </Alert>
+      </Container>
+    );
+  }
 
-   
-
-   
-
-  if (!profile) return <p>Loading profile...</p>;
+  // Format date fields for better display
+  const formatDate = (dateString) => {
+    if (!dateString) return "Not provided";
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
 
   return (
-    <>
-      <div style={{ maxWidth: "900px", margin: "20px auto", padding: "20px", border: "1px solid #ccc" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h3>Government of Australia</h3>
-            <h4>High Commission of Australia</h4>
-            <h2 style={{ marginTop: "10px" }}>Visa Application Form</h2>
-          </div>
-          {profile.photo && (
-            <img
-              src={profile.photo}
-              alt="Applicant"
-              style={{ width: "120px", height: "140px", border: "1px solid #000" }}
-            />
-          )}
-        </div>
+    <Container className="py-4">
+      {/* Header Section */}
+      <Card className="mb-4 shadow-sm border-0" style={{ background: 'linear-gradient(135deg, #1b4f72 0%, #2b91b2 100%)' }}>
+        <Card.Body className="text-white p-4">
+          <Row className="align-items-center">
+            <Col md={8}>
+              <div className="d-flex align-items-center mb-3">
+                <i className="fas fa-passport fa-2x me-3"></i>
+                <div>
+                  <h1 className="h3 mb-0">Government of Australia</h1>
+                  <h2 className="h5 mb-0 opacity-75">High Commission of Australia</h2>
+                </div>
+              </div>
+              <p className="mb-0 opacity-90">Visa Application Profile</p>
+            </Col>
+            <Col md={4} className="text-center">
+              {profile.photo ? (
+                <div className="position-relative d-inline-block">
+                  <img
+                    src={profile.photo}
+                    alt="Applicant"
+                    className="rounded shadow"
+                    style={{ 
+                      width: "140px", 
+                      height: "160px", 
+                      objectFit: "cover",
+                      border: "3px solid rgba(255,255,255,0.3)"
+                    }}
+                  />
+                  <Badge bg="light" text="dark" className="position-absolute top-0 start-100 translate-middle">
+                    Photo
+                  </Badge>
+                </div>
+              ) : (
+                <div className="bg-light rounded d-flex align-items-center justify-content-center"
+                  style={{ width: "140px", height: "160px", margin: "0 auto" }}>
+                  <i className="fas fa-user fa-3x text-muted"></i>
+                </div>
+              )}
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
 
-        {/* Section A */}
-        <h4 style={{ marginTop: "20px" }}>A. Personal Particulars (As in Passport)</h4>
-        <table border="1" cellPadding="8" cellSpacing="0" width="100%">
-          <tbody>
-            <tr><td>Surname</td><td>{profile.surname}</td></tr>
-            <tr><td>Name</td><td>{profile.name}</td></tr>
-            <tr><td>Previous Name</td><td>{profile.previousName}</td></tr>
-            <tr><td>Sex</td><td>{profile.sex}</td></tr>
-            <tr><td>Marital Status</td><td>{profile.maritalStatus}</td></tr>
-            <tr><td>Date of Birth</td><td>{profile.dob}</td></tr>
-            <tr><td>Religion</td><td>{profile.religion}</td></tr>
-            <tr><td>Birth City</td><td>{profile.birthCity}</td></tr>
-            <tr><td>Birth Country</td><td>{profile.birthCountry}</td></tr>
-            <tr><td>National ID</td><td>{profile.nationalId}</td></tr>
-            <tr><td>Education</td><td>{profile.education}</td></tr>
-            <tr><td>Marks</td><td>{profile.marks}</td></tr>
-          </tbody>
-        </table>
+      {/* Application Status Badge */}
+      <Row className="mb-4">
+        <Col>
+          <Alert variant="info" className="d-flex align-items-center">
+            <i className="fas fa-info-circle me-2"></i>
+            <div>
+              <strong>Application Status:</strong> 
+              <Badge bg="primary" className="ms-2">
+                {profile.applicationStatus || "Under Review"}
+              </Badge>
+            </div>
+          </Alert>
+        </Col>
+      </Row>
 
-        {/* Section B */}
-        <h4 style={{ marginTop: "20px" }}>B. Passport Details</h4>
-        <table border="1" cellPadding="8" cellSpacing="0" width="100%">
-          <tbody>
-            <tr><td>Passport No</td><td>{profile.passportNo}</td></tr>
-            <tr><td>Issue Date</td><td>{profile.passportIssueDate}</td></tr>
-            <tr><td>Place of Issue</td><td>{profile.passportPlace}</td></tr>
-            <tr><td>Expiry Date</td><td>{profile.passportExpiry}</td></tr>
-            <tr><td>Passport Region</td><td>{profile.passportRegion}</td></tr>
-          </tbody>
-        </table>
+      <Row>
+        {/* Personal Details Section */}
+        <Col lg={6} className="mb-4">
+          <Card className="h-100 shadow-sm">
+            <Card.Header className="bg-primary text-white">
+              <h5 className="mb-0">
+                <i className="fas fa-user me-2"></i>
+                Personal Details
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <table className="table table-borderless table-sm">
+                <tbody>
+                  <tr>
+                    <td width="40%" className="text-muted">Surname</td>
+                    <td><strong>{profile.surname || "Not provided"}</strong></td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Name</td>
+                    <td><strong>{profile.name || "Not provided"}</strong></td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Previous Name</td>
+                    <td>{profile.previousName || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Sex</td>
+                    <td><Badge bg="secondary">{profile.sex || "Not provided"}</Badge></td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Marital Status</td>
+                    <td>{profile.maritalStatus || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Date of Birth</td>
+                    <td>{formatDate(profile.dob)}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Religion</td>
+                    <td>{profile.religion || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Birth City</td>
+                    <td>{profile.birthCity || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Birth Country</td>
+                    <td>{profile.birthCountry || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">National ID</td>
+                    <td><code>{profile.nationalId || "Not provided"}</code></td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Education</td>
+                    <td>{profile.education || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Identification Marks</td>
+                    <td>{profile.marks || "Not provided"}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </Card.Body>
+          </Card>
+        </Col>
 
-        {/* Section C */}
-        <h4 style={{ marginTop: "20px" }}>C. Applicant’s Contact Details</h4>
-        <table border="1" cellPadding="8" cellSpacing="0" width="100%">
-          <tbody>
-            <tr><td>Contact Address</td><td>{profile.contactAddress}</td></tr>
-            <tr><td>Phone</td><td>{profile.phone}</td></tr>
-            <tr><td>Mobile</td><td>{profile.mobile}</td></tr>
-            <tr><td>Email</td><td>{profile.email}</td></tr>
-            <tr><td>Permanent Address</td><td>{profile.permanentAddress}</td></tr>
-          </tbody>
-        </table>
+        {/* Passport & Contact Details */}
+        <Col lg={6} className="mb-4">
+          {/* Passport Details */}
+          <Card className="mb-4 shadow-sm">
+            <Card.Header className="bg-success text-white">
+              <h5 className="mb-0">
+                <i className="fas fa-passport me-2"></i>
+                Passport Details
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <table className="table table-borderless table-sm">
+                <tbody>
+                  <tr>
+                    <td width="40%" className="text-muted">Passport No</td>
+                    <td><code>{profile.passportNo || "Not provided"}</code></td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Issue Date</td>
+                    <td>{formatDate(profile.passportIssueDate)}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Place of Issue</td>
+                    <td>{profile.passportPlace || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Expiry Date</td>
+                    <td>{formatDate(profile.passportExpiry)}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Passport Region</td>
+                    <td><Badge bg="info">{profile.passportRegion || "Not provided"}</Badge></td>
+                  </tr>
+                </tbody>
+              </table>
+            </Card.Body>
+          </Card>
 
-        {/* Section D */}
-        <h4 style={{ marginTop: "20px" }}>D. Family Details</h4>
-        <table border="1" cellPadding="8" cellSpacing="0" width="100%">
-          <tbody>
-            <tr><td>Father’s Name</td><td>{profile.fatherName}</td></tr>
-            <tr><td>Father’s Nationality</td><td>{profile.fatherNationality}</td></tr>
-            <tr><td>Father Previous Nationality</td><td>{profile.fatherPrevNationality}</td></tr>
-            <tr><td>Father Birth City</td><td>{profile.fatherBirthCity}</td></tr>
-            <tr><td>Mother’s Name</td><td>{profile.motherName}</td></tr>
-            <tr><td>Mother’s Nationality</td><td>{profile.motherNationality}</td></tr>
-            <tr><td>Mother Previous Nationality</td><td>{profile.motherPrevNationality}</td></tr>
-            <tr><td>Mother Birth City</td><td>{profile.motherBirthCity}</td></tr>
-          </tbody>
-        </table>
+          {/* Contact Details */}
+          <Card className="shadow-sm">
+            <Card.Header className="bg-warning text-dark">
+              <h5 className="mb-0">
+                <i className="fas fa-address-book me-2"></i>
+                Contact Details
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <table className="table table-borderless table-sm">
+                <tbody>
+                  <tr>
+                    <td width="40%" className="text-muted">Contact Address</td>
+                    <td>{profile.contactAddress || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Phone</td>
+                    <td>{profile.phone || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Mobile</td>
+                    <td>{profile.mobile || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Email</td>
+                    <td><a href={`mailto:${profile.email}`}>{profile.email || "Not provided"}</a></td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Permanent Address</td>
+                    <td>{profile.permanentAddress || "Not provided"}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
 
-        {/* Section E */}
-        <h4 style={{ marginTop: "20px" }}>E. Visa Details</h4>
-        <table border="1" cellPadding="8" cellSpacing="0" width="100%">
-          <tbody>
-            <tr><td>Visa Type</td><td>{profile.visaType}</td></tr>
-            <tr><td>Entries</td><td>{profile.entries}</td></tr>
-            <tr><td>Visa Period</td><td>{profile.visaPeriod}</td></tr>
-            <tr><td>Journey Date</td><td>{profile.journeyDate}</td></tr>
-            <tr><td>Arrival</td><td>{profile.arrival}</td></tr>
-            <tr><td>Exit</td><td>{profile.exit}</td></tr>
-            <tr><td>Migration Type</td><td>{profile.migrationType}</td></tr>
-          </tbody>
-        </table>
-      </div>
+      {/* Family Details */}
+      <Row>
+        <Col lg={6} className="mb-4">
+          <Card className="shadow-sm">
+            <Card.Header className="bg-info text-white">
+              <h5 className="mb-0">
+                <i className="fas fa-male me-2"></i>
+                Father's Details
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <table className="table table-borderless table-sm">
+                <tbody>
+                  <tr>
+                    <td width="40%" className="text-muted">Name</td>
+                    <td><strong>{profile.fatherName || "Not provided"}</strong></td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Nationality</td>
+                    <td>{profile.fatherNationality || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Previous Nationality</td>
+                    <td>{profile.fatherPrevNationality || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Birth City</td>
+                    <td>{profile.fatherBirthCity || "Not provided"}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </Card.Body>
+          </Card>
+        </Col>
 
-      {/* Payment Section */}
+        <Col lg={6} className="mb-4">
+          <Card className="shadow-sm">
+            <Card.Header className="bg-info text-white">
+              <h5 className="mb-0">
+                <i className="fas fa-female me-2"></i>
+                Mother's Details
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <table className="table table-borderless table-sm">
+                <tbody>
+                  <tr>
+                    <td width="40%" className="text-muted">Name</td>
+                    <td><strong>{profile.motherName || "Not provided"}</strong></td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Nationality</td>
+                    <td>{profile.motherNationality || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Previous Nationality</td>
+                    <td>{profile.motherPrevNationality || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Birth City</td>
+                    <td>{profile.motherBirthCity || "Not provided"}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Visa Details */}
+      <Card className="mb-4 shadow-sm">
+        <Card.Header className="bg-dark text-white">
+          <h5 className="mb-0">
+            <i className="fas fa-plane me-2"></i>
+            Visa & Migration Details
+          </h5>
+        </Card.Header>
+        <Card.Body>
+          <Row>
+            <Col md={6}>
+              <table className="table table-borderless table-sm">
+                <tbody>
+                  <tr>
+                    <td width="40%" className="text-muted">Visa Type</td>
+                    <td><Badge bg="primary">{profile.visaType || "Not provided"}</Badge></td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Number of Entries</td>
+                    <td>{profile.entries || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Visa Period (Months)</td>
+                    <td>{profile.visaPeriod || "Not provided"}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </Col>
+            <Col md={6}>
+              <table className="table table-borderless table-sm">
+                <tbody>
+                  <tr>
+                    <td width="40%" className="text-muted">Expected Journey Date</td>
+                    <td>{formatDate(profile.journeyDate)}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Port of Arrival</td>
+                    <td>{profile.arrival || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Port of Exit</td>
+                    <td>{profile.exit || "Not provided"}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Migration Type</td>
+                    <td><Badge bg="secondary">{profile.migrationType || "Not provided"}</Badge></td>
+                  </tr>
+                </tbody>
+              </table>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
       {/* Payment Section */}
       <Payment />
-    </>
+    </Container>
   );
 }
 

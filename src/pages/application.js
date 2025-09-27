@@ -4,7 +4,6 @@ import { Row, Col, Form, Button } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { db, auth } from "../firebaseConfig";
 import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const initialFormData = {
@@ -111,11 +110,28 @@ function Application() {
     }
   };
 
+  // Convert file to Base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   // handle text/file inputs for application form
-  const handleChange = (e) => {
+  const handleChange = async (e) => {
     const { name, value, files } = e.target;
-    if (files) {
-      setFormData((prev) => ({ ...prev, [name]: files[0] }));
+    if (files && files[0]) {
+      try {
+        // Convert image to Base64
+        const base64String = await fileToBase64(files[0]);
+        setFormData((prev) => ({ ...prev, [name]: base64String }));
+      } catch (error) {
+        console.error("Error converting file to Base64:", error);
+        alert("Error uploading photo. Please try again.");
+      }
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -128,20 +144,10 @@ function Application() {
 
     try {
       setLoading(true);
-      let photoURL = "";
 
-      // upload photo to firebase storage (if provided)
-      if (formData.photo) {
-        const storage = getStorage();
-        const storageRef = ref(storage, `photos/${Date.now()}_${formData.photo.name}`);
-        await uploadBytes(storageRef, formData.photo);
-        photoURL = await getDownloadURL(storageRef);
-      }
-
-      // save application doc
+      // save application doc with Base64 photo
       const docRef = await addDoc(collection(db, "applications"), {
         ...formData,
-        photo: photoURL,
         uid: user.uid,
         createdAt: new Date(),
       });
@@ -242,7 +248,16 @@ function Application() {
                 <Col>
                   <Form.Group className="mb-3">
                     <Form.Label>Photo</Form.Label>
-                    <Form.Control onChange={handleChange} type="file" accept="image/*" name="photo"  />
+                    <Form.Control 
+                      onChange={handleChange} 
+                      type="file" 
+                      accept="image/*" 
+                      name="photo" 
+                      required 
+                    />
+                    {/* <Form.Text className="text-muted">
+                      Photo will be stored as Base64 string in Firestore
+                    </Form.Text> */}
                   </Form.Group>
                 </Col>
                 <Col>
@@ -264,6 +279,9 @@ function Application() {
                   </Form.Group>
                 </Col>
               </Row>
+
+              {/* Rest of your form remains the same */}
+              {/* ... (all the other form fields) ... */}
 
               <Row>
                 <Col>
@@ -557,6 +575,7 @@ function Application() {
                   </Form.Select>
                 </Col>
               </Row>
+
 
               <br />
               <Button variant="dark" type="submit" disabled={loading}>
