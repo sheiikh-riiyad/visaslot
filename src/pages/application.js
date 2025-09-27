@@ -60,7 +60,7 @@ function Application() {
   // whether user already submitted an application doc
   const [hasProfile, setHasProfile] = useState(false);
   const [applicationDocId, setApplicationDocId] = useState(null);
-
+  console.log("Application Doc ID:", applicationDocId);
   // transactions list
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
