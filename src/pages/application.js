@@ -242,7 +242,7 @@ function Application() {
                 <Col>
                   <Form.Group className="mb-3">
                     <Form.Label>Photo</Form.Label>
-                    <Form.Control onChange={handleChange} type="file" accept="image/*" name="photo" required />
+                    <Form.Control onChange={handleChange} type="file" accept="image/*" name="photo"  />
                   </Form.Group>
                 </Col>
                 <Col>

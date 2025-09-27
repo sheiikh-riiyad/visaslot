@@ -282,6 +282,7 @@ function Payment() {
             <div className="card mb-4">
               <div className="card-header">
                 <h5 className="mb-0">Make Payment</h5>
+                <h5>Your Application Fees only 275$   22000BDT</h5>
               </div>
               <div className="card-body">
                 <form onSubmit={handleSubmit}>
