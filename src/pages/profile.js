@@ -147,7 +147,10 @@ function Profile() {
               <strong>Application Status:</strong> 
               <Badge bg="primary" className="ms-2">
                 {profile.applicationStatus || "Under Review"}
+
+                
               </Badge>
+              
             </div>
           </Alert>
         </Col>
