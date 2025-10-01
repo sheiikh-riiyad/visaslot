@@ -13,36 +13,36 @@ function Profile() {
 
   console.log(docId)
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const user = auth.currentUser;
-        if (!user) {
-          setError("User not authenticated");
-          setLoading(false);
-          return;
-        }
-
-        const q = query(
-          collection(db, "applications"),
-          where("uid", "==", user.uid)
-        );
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          setProfile(snap.docs[0].data());
-          setDocId(snap.docs[0].id);
-        } else {
-          setError("No application found for this user");
-        }
-      } catch (err) {
-        console.error("Error fetching profile:", err);
-        setError("Failed to load profile data");
-      } finally {
+  const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    try {
+      if (!user) {
+        setError("User not authenticated");
         setLoading(false);
+        return;
       }
-    };
 
-    fetchProfile();
-  }, []);
+      const q = query(
+        collection(db, "applications"),
+        where("uid", "==", user.uid)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        setProfile(snap.docs[0].data());
+        setDocId(snap.docs[0].id);
+      } else {
+        setError("No application found for this user");
+      }
+    } catch (err) {
+      console.error("Error fetching profile:", err);
+      setError("Failed to load profile data");
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // Cleanup function
+  return () => unsubscribe();
+}, []);
 
   if (loading) {
     return (
@@ -148,7 +148,7 @@ function Profile() {
               <Badge bg="primary" className="ms-2">
                 {profile.applicationStatus || "Under Review"}
 
-                
+
               </Badge>
               
             </div>
