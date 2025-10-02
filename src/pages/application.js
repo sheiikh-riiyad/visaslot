@@ -49,6 +49,7 @@ const initialFormData = {
   exit: "",
   passportRegion: "",
   migrationType: "",
+  sponsor: "",
   photo: null,
 };
 
@@ -280,8 +281,7 @@ function Application() {
                 </Col>
               </Row>
 
-              {/* Rest of your form remains the same */}
-              {/* ... (all the other form fields) ... */}
+              
 
               <Row>
                 <Col>
@@ -572,6 +572,61 @@ function Application() {
                     <option>Subclass 491 – Skilled Work Regional (Provisional) visa</option>
                     <option>Subclass 408 – Temporary Activity visa</option>
                     <option>Subclass 600 – Visitor visa</option>
+                  </Form.Select>
+                </Col>
+
+                <Col>
+                  <Form.Label>Sponsor by</Form.Label>
+                  <Form.Select value={formData.sponsor} onChange={handleChange} name="sponsor" required>
+                    <option value="">Select</option>
+<option value="BHP Group Limited">BHP Group Limited</option>
+<option value="CSL Behring Australia">CSL Behring Australia</option>
+<option value="Wesfarmers Limited">Wesfarmers Limited</option>
+<option value="Macquarie Group">Macquarie Group</option>
+<option value="Woodside Energy">Woodside Energy</option>
+<option value="Goodman Group">Goodman Group</option>
+<option value="Ampol Group">Ampol Group</option>
+<option value="BOQ Group">BOQ Group</option>
+<option value="ASX:All">ASX:All</option>
+<option value="Woolworths Group">Woolworths Group</option>
+<option value="Deloitte Australia">Deloitte Australia</option>
+<option value="Commonwealth Bank of Australia (CBA)">Commonwealth Bank of Australia (CBA)</option>
+<option value="Telstra">Telstra</option>
+<option value="Rio Tinto">Rio Tinto</option>
+<option value="Google Australia">Google Australia</option>
+<option value="Lendlease">Lendlease</option>
+<option value="Fortescue Metals Group">Fortescue Metals Group</option>
+<option value="Wesfarmers (Bunnings, Kmart, Target, Officeworks)">Wesfarmers (Bunnings, Kmart, Target, Officeworks)</option>
+<option value="Optus (Singtel)">Optus (Singtel)</option>
+<option value="TPG Telecom">TPG Telecom</option>
+<option value="Canva">Canva</option>
+<option value="Ramsay Health Care">Ramsay Health Care</option>
+<option value="Mirvac">Mirvac</option>
+<option value="Suncorp Group">Suncorp Group</option>
+<option value="ING Australia">ING Australia</option>
+<option value="Bank of Queensland">Bank of Queensland</option>
+<option value="Bendigo and Adelaide Bank">Bendigo and Adelaide Bank</option>
+<option value="Newcrest Mining">Newcrest Mining</option>
+<option value="South32">South32</option>
+<option value="Iluka Resources">Iluka Resources</option>
+<option value="Alumina Limited">Alumina Limited</option>
+<option value="Harvey Norman">Harvey Norman</option>
+<option value="Myer">Myer</option>
+<option value="JB Hi-Fi">JB Hi-Fi</option>
+<option value="Flight Centre">Flight Centre</option>
+<option value="NEXTDC">NEXTDC (data centers)</option>
+<option value="Appen">Appen</option>
+<option value="Stockland">Stockland</option>
+<option value="CIMIC Group">CIMIC Group</option>
+<option value="Qantas Airways">Qantas Airways</option>
+<option value="Virgin Australia">Virgin Australia</option>
+<option value="Sydney Airport">Sydney Airport</option>
+<option value="AGL Energy">AGL Energy</option>
+<option value="Origin Energy">Origin Energy</option>
+<option value="APA Group">APA Group</option>
+<option value="Santos">Santos</option>
+
+                    
                   </Form.Select>
                 </Col>
               </Row>

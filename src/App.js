@@ -14,6 +14,7 @@ import Profile from './pages/profile';
 import Login from './pages/login';
 import Register from './pages/register';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Jobdetails from './pages/jobdetails';
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
         <Route path="/profile" element={<Profile/>} />
         <Route path="/authorize" element={<Login/>} />
         <Route path="/register" element={<Register/>} />
+        <Route path="/jobdetails" element={<Jobdetails/>} />
         
       </Routes>
 

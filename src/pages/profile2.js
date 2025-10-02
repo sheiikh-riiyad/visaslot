@@ -3,8 +3,7 @@ import { useEffect, useState } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
 import Payment from "./payment";
-import { Card, Row, Col, Container, Badge, Alert, Button } from "react-bootstrap";
-
+import { Card, Row, Col, Container, Badge, Alert } from "react-bootstrap";
 
 function Profile() {
   const [profile, setProfile] = useState(null);
@@ -12,61 +11,39 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  function nothing(){  
-
-    console.log(docId) 
-  }
-
-  console.log(nothing)
-
-
-  // Download PDF function
+  console.log(docId)
   
-
-  // Format date function
-  const formatDate = (dateString) => {
-    if (!dateString) return "Not provided";
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      try {
-        if (!user) {
-          setError("Please log in to view your profile");
-          setLoading(false);
-          return;
-        }
-
-        const q = query(
-          collection(db, "applications"),
-          where("uid", "==", user.uid)
-        );
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          setProfile(snap.docs[0].data());
-          setDocId(snap.docs[0].id);
-        } else {
-          setError("No application found for this user");
-        }
-      } catch (err) {
-        console.error("Error fetching profile:", err);
-        setError("Failed to load profile data");
-      } finally {
+  const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    try {
+      if (!user) {
+        setError("User not authenticated");
         setLoading(false);
+        return;
       }
-    });
 
-    return () => unsubscribe();
-  }, []);
+      const q = query(
+        collection(db, "applications"),
+        where("uid", "==", user.uid)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        setProfile(snap.docs[0].data());
+        setDocId(snap.docs[0].id);
+      } else {
+        setError("No application found for this user");
+      }
+    } catch (err) {
+      console.error("Error fetching profile:", err);
+      setError("Failed to load profile data");
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // Cleanup function
+  return () => unsubscribe();
+}, []);
 
   if (loading) {
     return (
@@ -102,6 +79,20 @@ function Profile() {
       </Container>
     );
   }
+
+  // Format date fields for better display
+  const formatDate = (dateString) => {
+    if (!dateString) return "Not provided";
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
 
   return (
     <Container className="py-4">
@@ -148,49 +139,24 @@ function Profile() {
         </Card.Body>
       </Card>
 
-      {/* Application Status Badge with Download Button */}
+      {/* Application Status Badge */}
       <Row className="mb-4">
         <Col>
-          <Alert variant="info" className="d-flex align-items-center justify-content-between">
-            <div className="d-flex align-items-center">
-              <i className="fas fa-info-circle me-2"></i>
-              <div>
-                <strong>Application Status:</strong> 
-                <Badge bg="primary" className="ms-2">
-                  {profile.applicationStatus || "Under Review"}
-                </Badge>
-              </div>
+          <Alert variant="info" className="d-flex align-items-center">
+            <i className="fas fa-info-circle me-2"></i>
+            <div>
+              <strong>Application Status:</strong> 
+              <Badge bg="primary" className="ms-2">
+                {profile.applicationStatus || "Under Review"}
+
+
+              </Badge>
+              
             </div>
-            
-            {/* Download Button - Only show if status is "approved" */}
-            {profile && profile.applicationStatus && 
-             profile.applicationStatus.toLowerCase() === "approved" && (
-
-
-
-              <>
-
-              <Button 
-                variant="success" 
-                
-                className="d-flex align-items-center"
-                size="lg"
-              >
-                <i className="fas fa-download me-2"></i>
-                View
-              </Button>
-
-              <a href="/jobdetails">we need to verify your job details</a>
-
-              </>
-
-
-            )}
           </Alert>
         </Col>
       </Row>
 
-      {/* Rest of your existing profile display code remains exactly the same */}
       <Row>
         {/* Personal Details Section */}
         <Col lg={6} className="mb-4">
@@ -427,11 +393,6 @@ function Profile() {
                   <tr>
                     <td className="text-muted">Visa Period (Months)</td>
                     <td>{profile.visaPeriod || "Not provided"}</td>
-                  </tr>
-
-                  <tr>
-                    <td className="text-muted">sponsor</td>
-                    <td>{profile.sponsor || "Not provided"}</td>
                   </tr>
                 </tbody>
               </table>
