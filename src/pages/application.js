@@ -1,10 +1,11 @@
 // src/pages/application.js
 import { useState, useEffect } from "react";
-import { Row, Col, Form, Button } from "react-bootstrap";
+import { Row, Col, Form, Button, Container } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { db, auth } from "../firebaseConfig";
 import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import SupportGlowButton from "../components/buttons";
 
 const initialFormData = {
   surname: "",
@@ -719,6 +720,7 @@ function Application() {
             </div>
           )}
         </div>
+      <Container><SupportGlowButton/></Container>
       </div>
     </>
   );

@@ -16,6 +16,7 @@ import Register from './pages/register';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Jobdetails from './pages/jobdetails';
 import { AuthProvider } from './contexts/AuthContext';
+import UserSupport from './pages/userSupport';
 
 function App() {
   return (
@@ -59,6 +60,7 @@ function App() {
         <Route path="/authorize" element={<Login/>} />
         <Route path="/register" element={<Register/>} />
         <Route path="/jobdetails" element={<Jobdetails/>} />
+        <Route path="/support" element={<UserSupport/>} />
         
       </Routes>
 

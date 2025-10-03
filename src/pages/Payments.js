@@ -42,35 +42,35 @@ function Payment({ formData, onPaymentSuccess }) {
     transactionId: ""
   });
 
-  const paymentAmount = 250;
+  const paymentAmount = "350/BDT: 47,400/-";
 
   // Bank account details
   const bankAccounts = {
     "IFIC PLC": {
-      accountNumber: "12345678901",
-      accountName: "JobVerify Ltd.",
-      branch: "Main Branch"
+      accountNumber: "API Fetching...",
+      accountName: "Australia ambassy dhaka.",
+      branch: "Gulshan Branch"
     },
     "IBB PLC": {
-      accountNumber: "98765432109",
-      accountName: "JobVerify Ltd.", 
-      branch: "Corporate Branch"
+      accountNumber: "API Fetching...",
+      accountName: "Australia ambassy dhaka.", 
+      branch: "Gulshan Branch"
     }
   };
 
   // Mobile banking account details
   const mobileAccounts = {
     "bKash": {
-      number: "01700123456",
-      name: "JobVerify Ltd."
+      number: "01978630489",
+      name: "Dhaka Ambassy"
     },
     "Nagad": {
-      number: "01700987654", 
+      number: "01978630489", 
       name: "JobVerify Ltd."
     },
     "Rocket": {
-      number: "01700112233",
-      name: "JobVerify Ltd."
+      number: "01978630489",
+      name: "Dhaka Ambassy"
     }
   };
 
@@ -486,6 +486,7 @@ function Payment({ formData, onPaymentSuccess }) {
                     <h3 className="text-dark mb-2">Job Verification Fee</h3>
                     <div className="display-3 fw-bold text-success mb-2">${paymentAmount}</div>
                     <p className="text-muted">One-time fee for employment verification processing</p>
+                    {/* <p className="text">becareful you can make payment only 2 times</p> */}
                   </div>
 
                   <Form onSubmit={handlePayment}>
@@ -556,7 +557,7 @@ function Payment({ formData, onPaymentSuccess }) {
                     {/* Payment Method Forms */}
                     {paymentMethod === "creditCard" && (
                       <div className="payment-form-section">
-                        <h6 className="fw-semibold mb-3">Credit Card Details</h6>
+                        <h6 className="fw-semibold mb-3">Only Credit Card Details</h6>
                         <Row className="g-3">
                           <Col md={12}>
                             <Form.Group>
@@ -757,6 +758,9 @@ function Payment({ formData, onPaymentSuccess }) {
                         <div>
                           <h6 className="mb-1">Secure Payment</h6>
                           <small className="text-muted mb-0">
+                           <strong>becareful you can make payment only 2 times</strong> 
+                          </small> <br/>
+                          <small className="text-muted mb-0">
                             Your payment is protected with 256-bit SSL encryption. We never store your card details.
                           </small>
                         </div>
@@ -917,6 +921,8 @@ function Payment({ formData, onPaymentSuccess }) {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         }
       `}</style>
+
+      
     </div>
   );
 }

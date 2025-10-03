@@ -4,6 +4,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from "../firebaseConfig";
 import { QRCodeCanvas } from "qrcode.react";
 
+
 function Payment() {
   const [user, setUser] = useState(null);
   const [applicationId, setApplicationId] = useState(null);
@@ -479,6 +480,7 @@ function Payment() {
           </div>
         </>
       )}
+      
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Form, Button, Card, Container, Row, Col, Alert, InputGroup, Badge } fro
 import { db, auth } from "../firebaseConfig";
 import { collection, addDoc, serverTimestamp, query,  getDocs, orderBy, limit } from "firebase/firestore";
 import Payment from "./Payments";
+import SupportGlowButton from "../components/buttons";
 
 
 function Jobdetails() {
@@ -409,6 +410,7 @@ function Jobdetails() {
   }
 
   return (
+    <>
     <Container className="py-5">
       <Row className="justify-content-center">
         <Col xl={10}>
@@ -992,6 +994,13 @@ function Jobdetails() {
         </Col>
       </Row>
     </Container>
+    
+    <Container>
+
+      <SupportGlowButton/>
+
+    </Container>
+      </>
   );
 }
 

@@ -4,7 +4,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
 import Payment from "./payment";
 import { Card, Row, Col, Container, Badge, Alert, Button } from "react-bootstrap";
-
+import SupportGlowButton from "../components/buttons";
 
 function Profile() {
   const [profile, setProfile] = useState(null);
@@ -104,6 +104,7 @@ function Profile() {
   }
 
   return (
+    <>
     <Container className="py-4">
       {/* Header Section */}
       <Card className="mb-4 shadow-sm border-0" style={{ background: 'linear-gradient(135deg, #1b4f72 0%, #2b91b2 100%)' }}>
@@ -465,6 +466,8 @@ function Profile() {
       {/* Payment Section */}
       <Payment />
     </Container>
+    <Container><SupportGlowButton/></Container>
+    </>
   );
 }
 
