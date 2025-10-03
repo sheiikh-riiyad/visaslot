@@ -15,11 +15,12 @@ import Login from './pages/login';
 import Register from './pages/register';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Jobdetails from './pages/jobdetails';
+import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
   return (
     <>
-
+<AuthProvider>
     <Router>
       <Container fluid className="p-3 border-bottom">
         <Row className="align-items-center">
@@ -67,6 +68,7 @@ function App() {
 
 
   </Router>
+  </AuthProvider>
     </>
   );
 }

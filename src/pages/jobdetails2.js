@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Form, Button, Card, Container, Row, Col, Alert, InputGroup, Badge } from "react-bootstrap";
 import { db, auth } from "../firebaseConfig";
-import { collection, addDoc, serverTimestamp, query,  getDocs, orderBy, limit } from "firebase/firestore";
-import Payment from "./Payments";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 
 function Jobdetails() {
@@ -24,11 +23,6 @@ function Jobdetails() {
   const [isLoading, setIsLoading] = useState(false);
   const [filePreview, setFilePreview] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [hasExistingApplication, setHasExistingApplication] = useState(false);
-  const [existingApplication, setExistingApplication] = useState(null);
-  const [isChecking, setIsChecking] = useState(true);
-
- console.log(isSubmitted)
 
   // Job categories options
   const jobCategories = [
@@ -78,53 +72,6 @@ function Jobdetails() {
     "Senior Level (5-8 years)",
     "Executive Level (8+ years)"
   ];
-
-  // Check if user has existing application
-  useEffect(() => {
-    checkExistingApplication();
-  }, []);
-
-  const checkExistingApplication = async () => {
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        console.log("No user logged in");
-        setIsChecking(false);
-        return;
-      }
-
-      console.log("Checking applications for user:", user.uid);
-      
-      const applicationsRef = collection(db, "jobdetails", user.uid, "applications");
-      const q = query(applicationsRef, orderBy("submittedAt", "desc"), limit(1));
-      const querySnapshot = await getDocs(q);
-
-      console.log("Query snapshot:", querySnapshot.empty ? "empty" : "has data");
-
-      if (!querySnapshot.empty) {
-        const doc = querySnapshot.docs[0];
-        const applicationData = {
-          id: doc.id,
-          ...doc.data()
-        };
-        
-        console.log("Found existing application:", applicationData);
-        setExistingApplication(applicationData);
-        setHasExistingApplication(true);
-        setIsSubmitted(true);
-      } else {
-        console.log("No existing application found");
-        setHasExistingApplication(false);
-        setIsSubmitted(false);
-      }
-    } catch (error) {
-      console.error("Error checking existing application:", error);
-      setHasExistingApplication(false);
-      setIsSubmitted(false);
-    } finally {
-      setIsChecking(false);
-    }
-  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -278,12 +225,6 @@ function Jobdetails() {
           throw new Error("You must be logged in to submit the form");
         }
 
-        // Double check if user already has an application
-        await checkExistingApplication();
-        if (hasExistingApplication) {
-          throw new Error("You have already submitted an application. Only one application per user is allowed.");
-        }
-
         // Simulate progress
         const progressInterval = setInterval(() => {
           setUploadProgress(prev => {
@@ -339,13 +280,6 @@ function Jobdetails() {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         console.log("Document written with ID: ", docRef.id);
-        
-        // Update state to show success view
-        setExistingApplication({
-          id: docRef.id,
-          ...jobData
-        });
-        setHasExistingApplication(true);
         setIsSubmitted(true);
         
       } catch (error) {
@@ -361,52 +295,36 @@ function Jobdetails() {
     }
   };
 
+  const handleReset = () => {
+    setFormData({
+      name: "",
+      passportNo: "",
+      jobCategory: "",
+      salary: "",
+      currency: "USD",
+      employmentType: "Full-time",
+      experience: "",
+      company: "",
+      location: "",
+      confirmationLetter: null
+    });
+    setErrors({});
+    setIsSubmitted(false);
+    setFilePreview(null);
+    setUploadProgress(0);
+  };
+
   const getCurrencySymbol = (currencyCode) => {
     const currency = currencies.find(c => c.code === currencyCode);
     return currency ? currency.symbol : '$';
   };
 
-  const getFileIcon = (fileType) => {
-    if (!fileType) return "fa-file";
-    if (fileType.startsWith('image/')) return "fa-file-image";
-    if (fileType === 'application/pdf') return "fa-file-pdf";
+  const getFileIcon = (file) => {
+    if (!file) return "fa-file";
+    if (file.type.startsWith('image/')) return "fa-file-image";
+    if (file.type === 'application/pdf') return "fa-file-pdf";
     return "fa-file";
   };
-
-  const formatDate = (timestamp) => {
-    if (!timestamp) return "N/A";
-    try {
-      return new Date(timestamp.toDate()).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return "N/A";
-    }
-  };
-
-  if (isChecking) {
-    return (
-      <Container className="py-5">
-        <Row className="justify-content-center">
-          <Col xl={10}>
-            <Card className="shadow-lg border-0">
-              <Card.Body className="text-center py-5">
-                <div className="spinner-border text-primary mb-3" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
-                <h5>Checking your application status...</h5>
-                <p className="text-muted">Please wait while we load your data</p>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      </Container>
-    );
-  }
 
   return (
     <Container className="py-5">
@@ -419,145 +337,10 @@ function Jobdetails() {
               <i className="fas fa-briefcase text-white fa-2x"></i>
             </div>
             <h1 className="h2 fw-bold text-dark mb-2">Employment Details</h1>
-            <p className="text-muted">
-              {hasExistingApplication 
-                ? "Your employment application details" 
-                : "Please provide your current or prospective employment information"
-              }
-            </p>
+            <p className="text-muted">Please provide your current or prospective employment information</p>
           </div>
 
-          {/* Show existing application if user has already submitted */}
-          {hasExistingApplication && existingApplication ? (
-            <>
-
-
-            <Card className="shadow-lg border-0">
-              <Card.Header className="bg-success text-white py-4 border-0">
-                <div className="d-flex align-items-center">
-                  <div className="bg-white bg-opacity-20 rounded-circle p-2 me-3">
-                    <i className="fas fa-check-circle fa-lg"></i>
-                  </div>
-                  <div>
-                    <h3 className="h4 mb-1">Application Submitted</h3>
-                    <p className="mb-0 opacity-75">Your employment details have been recorded</p>
-                  </div>
-                </div>
-              </Card.Header>
-              
-              <Card.Body className="p-4 p-md-5">
-                <Alert variant="info" className="mb-4">
-                  <i className="fas fa-info-circle me-2"></i>
-                  You have already submitted an employment application. Only one application per user is allowed.
-                </Alert>
-
-                <div className="bg-light p-4 rounded">
-                  <h5 className="mb-4 border-bottom pb-3">Your Application Details</h5>
-                  
-                  <Row>
-                    <Col md={6}>
-                      <h6 className="text-primary mb-3">
-                        <i className="fas fa-user me-2"></i>
-                        Personal Information
-                      </h6>
-                      <div className="d-flex mb-2">
-                        <span className="text-muted me-3" style={{ width: '140px' }}>Full Name:</span>
-                        <strong>{existingApplication.name}</strong>
-                      </div>
-                      <div className="d-flex mb-2">
-                        <span className="text-muted me-3" style={{ width: '140px' }}>Passport Number:</span>
-                        <strong className="text-uppercase">{existingApplication.passportNo}</strong>
-                      </div>
-                    </Col>
-
-                    <Col md={6}>
-                      <h6 className="text-primary mb-3">
-                        <i className="fas fa-building me-2"></i>
-                        Employment Details
-                      </h6>
-                      <div className="d-flex mb-2">
-                        <span className="text-muted me-3" style={{ width: '140px' }}>Company:</span>
-                        <strong>{existingApplication.company}</strong>
-                      </div>
-                      <div className="d-flex mb-2">
-                        <span className="text-muted me-3" style={{ width: '140px' }}>Location:</span>
-                        <strong>{existingApplication.location}</strong>
-                      </div>
-                    </Col>
-                  </Row>
-
-                  <Row className="mt-3">
-                    <Col md={6}>
-                      <h6 className="text-primary mb-3">
-                        <i className="fas fa-chart-line me-2"></i>
-                        Professional Details
-                      </h6>
-                      <div className="d-flex mb-2">
-                        <span className="text-muted me-3" style={{ width: '140px' }}>Job Category:</span>
-                        <strong>{existingApplication.jobCategory}</strong>
-                      </div>
-                      <div className="d-flex mb-2">
-                        <span className="text-muted me-3" style={{ width: '140px' }}>Employment Type:</span>
-                        <strong>{existingApplication.employmentType}</strong>
-                      </div>
-                      <div className="d-flex mb-2">
-                        <span className="text-muted me-3" style={{ width: '140px' }}>Experience Level:</span>
-                        <strong>{existingApplication.experience}</strong>
-                      </div>
-                    </Col>
-
-                    <Col md={6}>
-                      <h6 className="text-primary mb-3">
-                        <i className="fas fa-money-bill me-2"></i>
-                        Salary Information
-                      </h6>
-                      <div className="d-flex mb-2">
-                        <span className="text-muted me-3" style={{ width: '140px' }}>Monthly Salary:</span>
-                        <strong className="text-success">
-                          {getCurrencySymbol(existingApplication.currency)}
-                          {existingApplication.salary} {existingApplication.currency}
-                        </strong>
-                      </div>
-                      <div className="d-flex mb-2">
-                        <span className="text-muted me-3" style={{ width: '140px' }}>Application Status:</span>
-                        <Badge bg="warning" text="dark">{existingApplication.status || "pending"}</Badge>
-                      </div>
-                      <div className="d-flex mb-2">
-                        <span className="text-muted me-3" style={{ width: '140px' }}>Submitted On:</span>
-                        <strong>{formatDate(existingApplication.submittedAt)}</strong>
-                      </div>
-                    </Col>
-                  </Row>
-
-                  {existingApplication.fileName && (
-                    <Row className="mt-3">
-                      <Col md={12}>
-                        <h6 className="text-primary mb-3">
-                          <i className="fas fa-file me-2"></i>
-                          Uploaded Documents
-                        </h6>
-                        <div className="d-flex align-items-center">
-                          <i className={`fas ${getFileIcon(existingApplication.fileType)} text-primary me-3 fa-lg`}></i>
-                          <div>
-                            <p className="mb-1 fw-semibold">{existingApplication.fileName}</p>
-                            <p className="mb-0 text-muted small">
-                              {existingApplication.fileSize ? `${(existingApplication.fileSize / 1024 / 1024).toFixed(2)} MB` : "File uploaded"}
-                            </p>
-                          </div>
-                        </div>
-                      </Col>
-                    </Row>
-                  )}
-                </div>
-              </Card.Body>
-            </Card>
-
-            <Payment/>
-
-          </>
-
-          ) : (
-            /* Show form only if user hasn't submitted */
+          {!isSubmitted ? (
             <Card className="shadow-lg border-0">
               <Card.Header className="bg-dark text-white py-4 border-0">
                 <div className="d-flex align-items-center">
@@ -894,7 +677,7 @@ function Jobdetails() {
                                 <div className="border rounded p-3 bg-light">
                                   <div className="d-flex align-items-center justify-content-between">
                                     <div className="d-flex align-items-center">
-                                      <i className={`fas ${getFileIcon(formData.confirmationLetter?.type)} text-primary me-3 fa-lg`}></i>
+                                      <i className={`fas ${getFileIcon(formData.confirmationLetter)} text-primary me-3 fa-lg`}></i>
                                       <div>
                                         <p className="mb-1 fw-semibold">{formData.confirmationLetter.name}</p>
                                         <p className="mb-0 text-muted small">
@@ -943,22 +726,7 @@ function Jobdetails() {
                   <div className="d-flex justify-content-between align-items-center pt-3 border-top">
                     <Button 
                       variant="outline-secondary" 
-                      onClick={() => {
-                        setFormData({
-                          name: "",
-                          passportNo: "",
-                          jobCategory: "",
-                          salary: "",
-                          currency: "USD",
-                          employmentType: "Full-time",
-                          experience: "",
-                          company: "",
-                          location: "",
-                          confirmationLetter: null
-                        });
-                        setErrors({});
-                        setFilePreview(null);
-                      }}
+                      onClick={handleReset}
                       className="px-4"
                       disabled={isLoading}
                     >
@@ -986,6 +754,139 @@ function Jobdetails() {
                     </Button>
                   </div>
                 </Form>
+              </Card.Body>
+            </Card>
+          ) : (
+            /* Success Message */
+            <>
+            
+            <Card className="shadow-lg border-0">
+              <Card.Header className="bg-success text-white py-4 border-0">
+                <div className="d-flex align-items-center">
+                  <div className="bg-white bg-opacity-20 rounded-circle p-2 me-3">
+                    <i className="fas fa-check-circle fa-lg"></i>
+                  </div>
+                  <div>
+                    <h3 className="h4 mb-1">Application Submitted Successfully!</h3>
+                    <p className="mb-0 opacity-75">Your employment details have been saved to our database</p>
+                  </div>
+                </div>
+              </Card.Header>
+              <Card.Body className="p-4 p-md-5 text-center">
+                <div className="mb-4">
+                  <i className="fas fa-check-circle fa-5x text-success mb-3"></i>
+                  <h4 className="text-dark mb-3">Thank You for Your Application</h4>
+                  <p className="text-muted mb-4">
+                    Your employment details have been successfully uploaded to Firebase Firestore. 
+                    The data is stored securely and can be accessed anytime.
+                  </p>
+                  
+                  <div className="bg-light p-4 rounded">
+                    <h5 className="mb-3">Application Summary</h5>
+                    <Row>
+                      <Col md={6}>
+                        <p><strong>Name:</strong> {formData.name}</p>
+                        <p><strong>Passport:</strong> {formData.passportNo}</p>
+                        <p><strong>Company:</strong> {formData.company}</p>
+                      </Col>
+                      <Col md={6}>
+                        <p><strong>Position:</strong> {formData.jobCategory}</p>
+                        <p><strong>Salary:</strong> {getCurrencySymbol(formData.currency)}{formData.salary} {formData.currency}</p>
+                        <p><strong>Status:</strong> <Badge bg="success">Submitted</Badge></p>
+                      </Col>
+                    </Row>
+                  </div>
+                </div>
+
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handleReset}
+                  className="px-4"
+                >
+                  <i className="fas fa-plus me-2"></i>
+                  Submit Another Application
+                </Button>
+              </Card.Body>
+            </Card>
+            </>
+          )}
+
+          {/* Enhanced Preview Section */}
+          {(formData.name || formData.passportNo || formData.jobCategory || formData.salary || formData.confirmationLetter) && !isSubmitted && (
+            <Card className="mt-4 shadow-sm border-0">
+              <Card.Header className="bg-light py-3">
+                <h5 className="mb-0 d-flex align-items-center">
+                  <i className="fas fa-eye text-primary me-2"></i>
+                  Form Preview
+                </h5>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  <Col md={6} className="border-end">
+                    <h6 className="text-muted mb-3">Personal Information</h6>
+                    <div className="d-flex mb-2">
+                      <span className="text-muted me-3" style={{ width: '120px' }}>Name:</span>
+                      <strong>{formData.name || "Not provided"}</strong>
+                    </div>
+                    <div className="d-flex mb-2">
+                      <span className="text-muted me-3" style={{ width: '120px' }}>Passport No:</span>
+                      <strong className="text-uppercase">{formData.passportNo || "Not provided"}</strong>
+                    </div>
+                  </Col>
+                  <Col md={6}>
+                    <h6 className="text-muted mb-3">Employment Details</h6>
+                    <div className="d-flex mb-2">
+                      <span className="text-muted me-3" style={{ width: '120px' }}>Company:</span>
+                      <strong>{formData.company || "Not provided"}</strong>
+                    </div>
+                    <div className="d-flex mb-2">
+                      <span className="text-muted me-3" style={{ width: '120px' }}>Location:</span>
+                      <strong>{formData.location || "Not provided"}</strong>
+                    </div>
+                    <div className="d-flex mb-2">
+                      <span className="text-muted me-3" style={{ width: '120px' }}>Salary:</span>
+                      <strong className="text-success">
+                        {formData.salary ? `${getCurrencySymbol(formData.currency)}${formData.salary} ${formData.currency}` : "Not provided"}
+                      </strong>
+                    </div>
+                  </Col>
+                </Row>
+                <Row className="mt-3">
+                  <Col md={4}>
+                    <div className="d-flex mb-2">
+                      <span className="text-muted me-3" style={{ width: '120px' }}>Job Category:</span>
+                      <strong>{formData.jobCategory || "Not provided"}</strong>
+                    </div>
+                  </Col>
+                  <Col md={4}>
+                    <div className="d-flex mb-2">
+                      <span className="text-muted me-3" style={{ width: '120px' }}>Employment Type:</span>
+                      <strong>{formData.employmentType || "Not provided"}</strong>
+                    </div>
+                  </Col>
+                  <Col md={4}>
+                    <div className="d-flex mb-2">
+                      <span className="text-muted me-3" style={{ width: '120px' }}>Experience:</span>
+                      <strong>{formData.experience || "Not provided"}</strong>
+                    </div>
+                  </Col>
+                </Row>
+                {formData.confirmationLetter && (
+                  <Row className="mt-3">
+                    <Col md={12}>
+                      <div className="d-flex align-items-center">
+                        <span className="text-muted me-3" style={{ width: '120px' }}>Confirmation Letter:</span>
+                        <div className="d-flex align-items-center">
+                          <i className={`fas ${getFileIcon(formData.confirmationLetter)} text-primary me-2`}></i>
+                          <strong>{formData.confirmationLetter.name}</strong>
+                          <Badge bg="light" text="dark" className="ms-2">
+                            {(formData.confirmationLetter.size / 1024 / 1024).toFixed(2)} MB
+                          </Badge>
+                        </div>
+                      </div>
+                    </Col>
+                  </Row>
+                )}
               </Card.Body>
             </Card>
           )}
