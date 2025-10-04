@@ -831,7 +831,7 @@ function Payment({ formData, onPaymentSuccess }) {
                               <th className="ps-3">Date & Time</th>
                               <th>Payment Method</th>
                               <th>Transaction ID</th>
-                              <th>Amount</th>
+                              
                               <th className="text-center">Status</th>
                             </tr>
                           </thead>
@@ -858,9 +858,7 @@ function Payment({ formData, onPaymentSuccess }) {
                                     {transaction.transactionId}
                                   </code>
                                 </td>
-                                <td>
-                                  <strong className="text-success">${paymentAmount}</strong>
-                                </td>
+                               
                                 <td className="text-center">
                                   {getStatusBadge(transaction.paymentStatus)}
                                 </td>

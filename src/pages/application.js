@@ -221,9 +221,11 @@ function Application() {
     return (
       <div style={{ textAlign: "center", padding: "50px" }}>
         <h3>You must log in to see the application form</h3>
-        <Button as={Link} to="/authorize" variant="primary">
+        <Button style={{marginBottom: "5px"}} as={Link} to="/authorize" variant="primary">
           Login
         </Button>
+        <br/>
+        <SupportGlowButton/>
       </div>
     );
   }

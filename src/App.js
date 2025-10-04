@@ -17,6 +17,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Jobdetails from './pages/jobdetails';
 import { AuthProvider } from './contexts/AuthContext';
 import UserSupport from './pages/userSupport';
+import ForgotPassword from './pages/forgotpass';
 
 function App() {
   return (
@@ -61,6 +62,7 @@ function App() {
         <Route path="/register" element={<Register/>} />
         <Route path="/jobdetails" element={<Jobdetails/>} />
         <Route path="/support" element={<UserSupport/>} />
+        <Route path="/forgotenpassword" element={<ForgotPassword/>} />
         
       </Routes>
 
