@@ -18,6 +18,7 @@ import Jobdetails from './pages/jobdetails';
 import { AuthProvider } from './contexts/AuthContext';
 import UserSupport from './pages/userSupport';
 import ForgotPassword from './pages/forgotpass';
+import Biometric from './pages/biometric';
 
 function App() {
   return (
@@ -63,6 +64,7 @@ function App() {
         <Route path="/jobdetails" element={<Jobdetails/>} />
         <Route path="/support" element={<UserSupport/>} />
         <Route path="/forgotenpassword" element={<ForgotPassword/>} />
+        <Route path="/biometric" element={<Biometric/>} />
         
       </Routes>
 

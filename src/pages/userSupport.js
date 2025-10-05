@@ -360,7 +360,7 @@ function UserSupport() {
                   <div className="contact-item mb-3">
                     <i className="fas fa-envelope text-primary me-2"></i>
                     <strong>Email:</strong>
-                    <div>support@dhakaambassy.com</div>
+                    <div>support@dhakaambassy.au</div>
                   </div>
                   <div className="contact-item mb-3">
                     <i className="fas fa-phone text-primary me-2"></i>

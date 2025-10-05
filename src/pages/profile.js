@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
 import Payment from "./payment";
-import { Card, Row, Col, Container, Badge, Alert, Button, Modal } from "react-bootstrap";
+import { Card, Row, Col, Container, Badge, Alert, Button, Modal, ProgressBar } from "react-bootstrap";
 import SupportGlowButton from "../components/buttons";
+import { useNavigate } from "react-router-dom";
+
 
 function Profile() {
   const [profile, setProfile] = useState(null);
@@ -14,6 +16,8 @@ function Profile() {
   const [showModal, setShowModal] = useState(false);
   const [applicationLetter, setApplicationLetter] = useState(null);
   const [letterLoading, setLetterLoading] = useState(false);
+  const navigate = useNavigate();
+
 
   // Function to fetch application letter from base64
   const fetchApplicationLetter = async () => {
@@ -252,12 +256,236 @@ function Profile() {
                   )}
                 </Button>
 
-                <a href="/jobdetails">We Need to Verify Your Job Details</a>
+                
                 </>
               )}
             </Alert>
           </Col>
         </Row>
+       
+             <>
+              {profile && profile.applicationStatus && profile.applicationStatus.toLowerCase() === "approved" && (
+  <Container className="my-4">
+    <Card className="border-0 shadow-lg" style={{ 
+      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+      borderRadius: '20px',
+      overflow: 'hidden'
+    }}>
+      <Card.Body className="p-4">
+        {/* Header */}
+        <div className="text-center mb-4">
+          <div className="success-icon mb-3">
+            <i className="fas fa-check-circle fa-3x text-success"></i>
+          </div>
+          <h3 className="text-dark fw-bold mb-2">Application Approved! 🎉</h3>
+          <p className="text-muted mb-0">Your visa application has been approved. Complete the next steps:</p>
+        </div>
+
+        {/* Process Steps */}
+        <Row className="g-3">
+          {/* Job Details Verification */}
+          <Col md={6} lg={4}>
+            <Card 
+              className="h-100 process-card border-0 shadow-sm"
+              onClick={() => navigate('/jobdetails')}
+              style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            >
+              <Card.Body className="text-center p-4">
+                <div className="process-icon mb-3">
+                  <i className="fas fa-briefcase fa-2x text-primary"></i>
+                </div>
+                <h6 className="fw-bold text-dark mb-2">Job Details Verification</h6>
+                <p className="text-muted small mb-3">
+                  Verify your employment information and job offer details
+                </p>
+                <Badge bg="primary" className="px-3 py-2">
+                  Step 1 <i className="fas fa-arrow-right ms-1"></i>
+                </Badge>
+              </Card.Body>
+            </Card>
+          </Col>
+
+          {/* Biometric Collection */}
+          <Col md={6} lg={4}>
+            <Card 
+              className="h-100 process-card border-0 shadow-sm"
+              onClick={() => navigate('/biometric')}
+              style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            >
+              <Card.Body className="text-center p-4">
+                <div className="process-icon mb-3">
+                  <i className="fas fa-fingerprint fa-2x text-success"></i>
+                </div>
+                <h6 className="fw-bold text-dark mb-2">Biometric Collection</h6>
+                <p className="text-muted small mb-3">
+                  Schedule your biometric data collection appointment
+                </p>
+                <Badge bg="success" className="px-3 py-2">
+                  Step 2 <i className="fas fa-arrow-right ms-1"></i>
+                </Badge>
+              </Card.Body>
+            </Card>
+          </Col>
+
+          {/* LMIA */}
+          <Col md={6} lg={4}>
+            <Card 
+              className="h-100 process-card border-0 shadow-sm"
+              onClick={() => navigate('/lmia')}
+              style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            >
+              <Card.Body className="text-center p-4">
+                <div className="process-icon mb-3">
+                  <i className="fas fa-file-contract fa-2x text-warning"></i>
+                </div>
+                <h6 className="fw-bold text-dark mb-2">LMIA Assessment</h6>
+                <p className="text-muted small mb-3">
+                  Labour Market Impact Assessment documentation
+                </p>
+                <Badge bg="warning" text="dark" className="px-3 py-2">
+                  Step 3 <i className="fas fa-arrow-right ms-1"></i>
+                </Badge>
+              </Card.Body>
+            </Card>
+          </Col>
+
+          {/* Australian Work Permit */}
+          <Col md={6} lg={4}>
+            <Card 
+              className="h-100 process-card border-0 shadow-sm"
+              onClick={() => navigate('/work-permit')}
+              style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            >
+              <Card.Body className="text-center p-4">
+                <div className="process-icon mb-3">
+                  <i className="fas fa-file-alt fa-2x text-info"></i>
+                </div>
+                <h6 className="fw-bold text-dark mb-2">Work Permit</h6>
+                <p className="text-muted small mb-3">
+                  Australian work permit application and requirements
+                </p>
+                <Badge bg="info" className="px-3 py-2">
+                  Step 4 <i className="fas fa-arrow-right ms-1"></i>
+                </Badge>
+              </Card.Body>
+            </Card>
+          </Col>
+
+          {/* Man Power Services */}
+          <Col md={6} lg={4}>
+            <Card 
+              className="h-100 process-card border-0 shadow-sm"
+              onClick={() => navigate('/manpower')}
+              style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            >
+              <Card.Body className="text-center p-4">
+                <div className="process-icon mb-3">
+                  <i className="fas fa-users fa-2x text-secondary"></i>
+                </div>
+                <h6 className="fw-bold text-dark mb-2">Man Power Services</h6>
+                <p className="text-muted small mb-3">
+                  Workforce and employment support services
+                </p>
+                <Badge bg="secondary" className="px-3 py-2">
+                  Step 5 <i className="fas fa-arrow-right ms-1"></i>
+                </Badge>
+              </Card.Body>
+            </Card>
+          </Col>
+
+          {/* Passport & VISA */}
+          <Col md={6} lg={4}>
+            <Card 
+              className="h-100 process-card border-0 shadow-sm"
+              onClick={() => navigate('/passport-visa')}
+              style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            >
+              <Card.Body className="text-center p-4">
+                <div className="process-icon mb-3">
+                  <i className="fas fa-passport fa-2x text-danger"></i>
+                </div>
+                <h6 className="fw-bold text-dark mb-2">Passport & VISA</h6>
+                <p className="text-muted small mb-3">
+                  Final passport stamping and visa issuance
+                </p>
+                <Badge bg="danger" className="px-3 py-2">
+                  Final Step <i className="fas fa-flag ms-1"></i>
+                </Badge>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Progress Bar */}
+        <div className="mt-4">
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <small className="text-muted">Application Progress</small>
+            <small className="text-primary fw-bold">Step 1 of 6</small>
+          </div>
+          <ProgressBar now={16.66} variant="primary" style={{ height: '8px', borderRadius: '10px' }} />
+        </div>
+
+        {/* Help Text */}
+        <div className="text-center mt-4">
+          <small className="text-muted">
+            <i className="fas fa-info-circle me-1"></i>
+            Complete each step in order to finalize your visa process
+          </small>
+        </div>
+      </Card.Body>
+    </Card>
+
+    <style jsx>{`
+      .process-card {
+        transition: all 0.3s ease;
+        border-radius: 15px;
+      }
+      
+      .process-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+      }
+      
+      .process-icon {
+        transition: all 0.3s ease;
+      }
+      
+      .process-card:hover .process-icon {
+        transform: scale(1.1);
+      }
+      
+      .success-icon {
+        animation: bounce 2s infinite;
+      }
+      
+      @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% {
+          transform: translateY(0);
+        }
+        40% {
+          transform: translateY(-10px);
+        }
+        60% {
+          transform: translateY(-5px);
+        }
+      }
+      
+      .process-card .badge {
+        transition: all 0.3s ease;
+      }
+      
+      .process-card:hover .badge {
+        transform: scale(1.05);
+      }
+    `}</style>
+  </Container>
+)}
+
+            </>
+
+
+
+
 
         {/* Personal Details Section */}
         <Row>
