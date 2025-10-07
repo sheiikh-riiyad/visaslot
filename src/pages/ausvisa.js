@@ -7,7 +7,7 @@ import { app } from "../firebaseConfig";
 
 import { Link } from "react-router-dom";
 
-const db = getFirestore(app);
+const db = getFirestore(app); 
 const auth = getAuth(app);
 
 function AustraliaVisaPassport() {
