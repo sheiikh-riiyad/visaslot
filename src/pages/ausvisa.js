@@ -1,5 +1,5 @@
 // src/pages/AustraliaVisaPassport.js
-import { useState, useEffect } from "react";
+import { useState,  } from "react";
 import { Card, Container, Row, Col, Alert, Spinner, Button, Badge, Modal, Tabs, Tab } from "react-bootstrap";
 import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
@@ -94,9 +94,9 @@ function AustraliaVisaPassport() {
     }
   };
 
-  useEffect(() => {
-    fetchUserData();
-  }, []);
+  // useEffect(() => {
+  //   fetchUserData();
+  // }, []);
 
   const previewDocument = (base64Data, title) => {
     if (base64Data) {
