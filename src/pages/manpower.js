@@ -1,15 +1,15 @@
-// src/pages/VisaDocumentSubmission.js
+// src/pages/ManpowerService.js
 import { useState, useEffect } from "react";
 import { Form, Button, Card, Container, Row, Col, Alert, Spinner, ProgressBar, Modal, Badge } from "react-bootstrap";
 import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDocs, query, where } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { app } from "../firebaseConfig";
-import BiometricPayment from "./biometricspay";
+import ManpowerServicePayment from "./manpowerpay";
 
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-function Biometric() {
+function ManpowerService() {
   const [loading, setLoading] = useState(false);
   const [checkingSubmission, setCheckingSubmission] = useState(true);
   const [showAlert, setShowAlert] = useState(false);
@@ -22,19 +22,68 @@ function Biometric() {
   const [existingSubmission, setExistingSubmission] = useState(null);
 
   const [formData, setFormData] = useState({
-    vlnNumber: "",
-    appointmentDate: "",
-    appointmentTime: "",
-    vfsCenter: "",
-    vlnDocument: null,
-    appointmentDocument: null,
+    passportNumber: "",
+    fullName: "",
+    dateOfBirth: "",
+    nationality: "",
+    contactNumber: "",
+    email: "",
+    serviceType: "",
+    destinationCountry: "",
+    documentFile: null,
+    documentBase64: null,
+    documentPreview: null,
     additionalNotes: ""
   });
 
-  const vfsCenters = [
-    "Dhaka VFS Global Center",
-    "Sylhet VFS Global Center",
-    "Chottogram VFS Global Center"
+  const serviceTypes = [
+    "Skilled Worker",
+    "Semi-Skilled Worker",
+    "Unskilled Worker",
+    "Domestic Worker",
+    "Construction Worker",
+    "Factory Worker",
+    "Hospitality Staff",
+    "Healthcare Worker",
+    "IT Professional",
+    "Engineer",
+    "Driver",
+    "Security Guard",
+    "Other"
+  ];
+
+  const destinationCountries = [
+    "Saudi Arabia",
+    "United Arab Emirates",
+    "Qatar",
+    "Kuwait",
+    "Oman",
+    "Bahrain",
+    "Malaysia",
+    "Singapore",
+    "South Korea",
+    "Japan",
+    "Australia",
+    "Canada",
+    "United Kingdom",
+    "United States",
+    "Germany",
+    "France",
+    "Italy",
+    "Spain",
+    "Other"
+  ];
+
+  const nationalities = [
+    "Bangladeshi",
+    "Indian",
+    "Pakistani",
+    "Sri Lankan",
+    "Nepalese",
+    "Filipino",
+    "Indonesian",
+    "Vietnamese",
+    "Other"
   ];
 
   // Check for existing submission on component mount
@@ -51,7 +100,7 @@ function Biometric() {
 
     try {
       const submissionsQuery = query(
-        collection(db, "visaSubmissions"),
+        collection(db, "manpowerSubmissions"),
         where("userId", "==", user.uid)
       );
       
@@ -63,7 +112,7 @@ function Biometric() {
         setExistingSubmission(latestSubmission);
       }
     } catch (error) {
-      console.error("Error checking existing submission:", error);
+      console.error("Error checking existing manpower submission:", error);
     } finally {
       setCheckingSubmission(false);
     }
@@ -120,8 +169,8 @@ function Biometric() {
         setFormData(prev => ({
           ...prev,
           [name]: file,
-          [`${name}Base64`]: base64Data,
-          [`${name}Preview`]: file.type.startsWith('image/') ? base64Data : null
+          documentBase64: base64Data,
+          documentPreview: file.type.startsWith('image/') ? base64Data : null
         }));
 
       } catch (error) {
@@ -133,12 +182,56 @@ function Biometric() {
     }
   };
 
-  const previewDocument = (documentType) => {
-    const preview = documentType === 'vln' ? formData.vlnDocumentPreview : formData.appointmentDocumentPreview;
-    if (preview) {
-      setPreviewImage(preview);
+  const previewDocument = () => {
+    if (formData.documentPreview) {
+      setPreviewImage(formData.documentPreview);
       setShowPreview(true);
     }
+  };
+
+  // Function to download base64 document
+  const downloadDocument = (base64Data, fileName) => {
+    const link = document.createElement('a');
+    link.href = base64Data;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const validateForm = () => {
+    // Basic validation for passport number format
+    const passportRegex = /^[A-Z0-9]{6,9}$/;
+    if (!passportRegex.test(formData.passportNumber)) {
+      showMessage("❌ Please enter a valid passport number (6-9 alphanumeric characters)", "danger");
+      return false;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.email && !emailRegex.test(formData.email)) {
+      showMessage("❌ Please enter a valid email address", "danger");
+      return false;
+    }
+
+    // Phone number validation (basic)
+    const phoneRegex = /^[0-9+\-\s()]{10,}$/;
+    if (formData.contactNumber && !phoneRegex.test(formData.contactNumber)) {
+      showMessage("❌ Please enter a valid contact number", "danger");
+      return false;
+    }
+
+    // Check if date of birth is valid
+    if (formData.dateOfBirth) {
+      const dob = new Date(formData.dateOfBirth);
+      const today = new Date();
+      if (dob >= today) {
+        showMessage("❌ Date of birth cannot be in the future", "danger");
+        return false;
+      }
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e) => {
@@ -146,23 +239,29 @@ function Biometric() {
     const user = auth.currentUser;
 
     if (!user) {
-      showMessage("❌ Please log in to submit documents", "danger");
+      showMessage("❌ Please log in to submit manpower service application", "danger");
       return;
     }
 
     // Prevent multiple submissions
     if (hasExistingSubmission) {
-      showMessage("❌ You have already submitted your documents. Only one submission is allowed per user.", "danger");
+      showMessage("❌ You have already submitted your manpower service application. Only one submission is allowed per user.", "danger");
       return;
     }
 
-    if (!formData.vlnNumber || !formData.appointmentDate || !formData.vfsCenter) {
+    if (!formData.passportNumber || !formData.fullName || !formData.dateOfBirth || 
+        !formData.nationality || !formData.serviceType || !formData.destinationCountry) {
       showMessage("❌ Please fill all required fields", "danger");
       return;
     }
 
-    if (!formData.vlnDocument || !formData.appointmentDocument) {
-      showMessage("❌ Please upload both required documents", "danger");
+    if (!formData.documentFile) {
+      showMessage("❌ Please upload the required document", "danger");
+      return;
+    }
+
+    // Validate form data
+    if (!validateForm()) {
       return;
     }
 
@@ -181,68 +280,72 @@ function Biometric() {
         });
       }, 200);
 
-      // Save submission data to Firestore with base64 documents
-      const submissionData = {
+      // Save manpower service data to Firestore with base64 document
+      const manpowerData = {
         userId: user.uid,
         userEmail: user.email,
-        vlnNumber: formData.vlnNumber,
-        appointmentDate: formData.appointmentDate,
-        appointmentTime: formData.appointmentTime,
-        vfsCenter: formData.vfsCenter,
-        vlnDocument: {
-          fileName: formData.vlnDocument.name,
-          fileType: formData.vlnDocument.type,
-          fileSize: formData.vlnDocument.size,
-          base64Data: formData.vlnDocumentBase64,
-          uploadedAt: serverTimestamp()
-        },
-        appointmentDocument: {
-          fileName: formData.appointmentDocument.name,
-          fileType: formData.appointmentDocument.type,
-          fileSize: formData.appointmentDocument.size,
-          base64Data: formData.appointmentDocumentBase64,
+        passportNumber: formData.passportNumber.toUpperCase(),
+        fullName: formData.fullName,
+        dateOfBirth: formData.dateOfBirth,
+        nationality: formData.nationality,
+        contactNumber: formData.contactNumber,
+        email: formData.email,
+        serviceType: formData.serviceType,
+        destinationCountry: formData.destinationCountry,
+        document: {
+          fileName: formData.documentFile.name,
+          fileType: formData.documentFile.type,
+          fileSize: formData.documentFile.size,
+          base64Data: formData.documentBase64,
           uploadedAt: serverTimestamp()
         },
         additionalNotes: formData.additionalNotes,
         status: "submitted",
         submittedAt: serverTimestamp(),
-        submissionId: `SUB${Date.now().toString().slice(-8)}`
+        submissionId: `MAN${Date.now().toString().slice(-8)}`,
+        verified: false
       };
 
-      await addDoc(collection(db, "visaSubmissions"), submissionData);
+      await addDoc(collection(db, "manpowerSubmissions"), manpowerData);
 
-      // Also update user's profile with submission status
+      // Update user's profile with manpower submission status
       await setDoc(doc(db, "users", user.uid), {
-        hasSubmittedDocuments: true,
-        lastSubmissionDate: serverTimestamp(),
-        vlnNumber: formData.vlnNumber
+        hasManpowerSubmission: true,
+        manpowerPassportNumber: formData.passportNumber.toUpperCase(),
+        manpowerStatus: "submitted",
+        lastManpowerSubmission: serverTimestamp()
       }, { merge: true });
 
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      showMessage("✅ Documents submitted successfully! We'll review them within 24-48 hours.");
+      showMessage("✅ Manpower service application submitted successfully! We'll process your application within 24-48 hours.");
       
       // Update state to prevent further submissions
       setHasExistingSubmission(true);
-      setExistingSubmission(submissionData);
+      setExistingSubmission(manpowerData);
 
       // Reset form
       setFormData({
-        vlnNumber: "",
-        appointmentDate: "",
-        appointmentTime: "",
-        vfsCenter: "",
-        vlnDocument: null,
-        appointmentDocument: null,
+        passportNumber: "",
+        fullName: "",
+        dateOfBirth: "",
+        nationality: "",
+        contactNumber: "",
+        email: "",
+        serviceType: "",
+        destinationCountry: "",
+        documentFile: null,
+        documentBase64: null,
+        documentPreview: null,
         additionalNotes: ""
       });
 
       setTimeout(() => setUploadProgress(0), 2000);
 
     } catch (error) {
-      console.error("Submission error:", error);
-      showMessage("❌ Failed to submit documents. Please try again.", "danger");
+      console.error("Manpower service submission error:", error);
+      showMessage("❌ Failed to submit manpower service application. Please try again.", "danger");
     } finally {
       setLoading(false);
     }
@@ -252,31 +355,23 @@ function Biometric() {
     const statusConfig = {
       submitted: { variant: "warning", text: "Under Review" },
       approved: { variant: "success", text: "Approved" },
-      rejected: { variant: "danger", text: "Needs Revision" }
+      rejected: { variant: "danger", text: "Needs Revision" },
+      processing: { variant: "info", text: "Processing" },
+      shortlisted: { variant: "primary", text: "Shortlisted" }
     };
     
     const config = statusConfig[status] || { variant: "secondary", text: "Pending" };
     return <Badge bg={config.variant}>{config.text}</Badge>;
   };
 
-  // Function to download base64 document
-  const downloadDocument = (base64Data, fileName) => {
-    const link = document.createElement('a');
-    link.href = base64Data;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   if (checkingSubmission) {
     return (
-      <div className="visa-document-page">
+      <div className="manpower-service-page">
         <Container className="py-5">
           <Row className="justify-content-center">
             <Col lg={8} className="text-center">
               <Spinner animation="border" variant="primary" className="mb-3" />
-              <h4>Checking your submission status...</h4>
+              <h4>Checking your manpower service application status...</h4>
             </Col>
           </Row>
         </Container>
@@ -285,20 +380,19 @@ function Biometric() {
   }
 
   return (
-
     <>
-    <div className="visa-document-page">
+    <div className="manpower-service-page">
       <Container className="py-5">
         <Row className="justify-content-center">
           <Col lg={10} xl={8}>
             {/* Header Section */}
             <div className="text-center mb-5">
               <div className="document-icon mb-3">
-                <i className="fas fa-file-upload fa-3x text-primary"></i>
+                <i className="fas fa-users fa-3x text-primary"></i>
               </div>
-              <h1 className="fw-bold text-gradient">Document Submission</h1>
+              <h1 className="fw-bold text-gradient">Manpower Service Application</h1>
               <p className="lead text-muted">
-                Submit your Visa Lodgement Number and Biometric Appointment documents
+                Submit your application for overseas employment opportunities
               </p>
               
               {/* Existing Submission Alert */}
@@ -307,11 +401,11 @@ function Biometric() {
                   <div className="d-flex align-items-center">
                     <i className="fas fa-info-circle me-2"></i>
                     <div>
-                      <strong>You have already submitted your documents.</strong>
+                      <strong>You have already submitted your manpower service application.</strong>
                       {existingSubmission && (
                         <div className="mt-2">
                           <small>
-                            Submission ID: {existingSubmission.submissionId} | 
+                            Application ID: {existingSubmission.submissionId} | 
                             Status: {getStatusBadge(existingSubmission.status)} | 
                             Date: {existingSubmission.submittedAt?.toDate?.().toLocaleDateString()}
                           </small>
@@ -327,7 +421,7 @@ function Biometric() {
             <Card className="mb-4 shadow-sm border-0">
               <Card.Body className="p-4">
                 <div className="d-flex justify-content-between align-items-center">
-                  {['Document Info', 'Upload Files', 'Review', 'Complete'].map((step, index) => (
+                  {['Personal Info', 'Service Details', 'Upload Document', 'Complete'].map((step, index) => (
                     <div key={step} className="text-center flex-fill">
                       <div className={`step-circle ${index === 0 ? 'active' : ''} mx-auto mb-2`}>
                         {index + 1}
@@ -356,7 +450,7 @@ function Biometric() {
               <Card className="mb-4 border-0 shadow-sm">
                 <Card.Body>
                   <div className="d-flex justify-content-between align-items-center mb-2">
-                    <span className="fw-semibold">Processing Documents...</span>
+                    <span className="fw-semibold">Processing Application...</span>
                     <span className="text-primary">{uploadProgress}%</span>
                   </div>
                   <ProgressBar 
@@ -373,8 +467,8 @@ function Biometric() {
             <Card className="shadow-lg border-0">
               <Card.Header className={`py-3 ${hasExistingSubmission ? 'bg-secondary' : 'bg-primary text-white'}`}>
                 <h4 className="mb-0">
-                  <i className="fas fa-passport me-2"></i>
-                  Visa Document Submission
+                  <i className="fas fa-briefcase me-2"></i>
+                  Manpower Service Application
                   {hasExistingSubmission && (
                     <Badge bg="light" text="dark" className="ms-2">
                       Already Submitted
@@ -386,158 +480,270 @@ function Biometric() {
                 {hasExistingSubmission ? (
                   <div className="text-center py-4">
                     <i className="fas fa-check-circle fa-4x text-success mb-3"></i>
-                    <h4 className="text-success mb-3">Documents Already Submitted</h4>
+                    <h4 className="text-success mb-3">Application Already Submitted</h4>
                     <p className="text-muted mb-4">
-                      You have already submitted your visa documents. Each user can only submit once.
-                      If you need to update your information, please contact support.
+                      You have already submitted your manpower service application. Each user can only submit once.
+                      If you need to update your information, please contact our recruitment team.
                     </p>
                     {existingSubmission && (
                       <Card className="bg-light">
                         <Card.Body>
-                          <h6>Your Submission Details:</h6>
+                          <h6>Your Application Details:</h6>
                           <Row className="text-start">
                             <Col md={6}>
-                              <strong>VLN Number:</strong> {existingSubmission.vlnNumber}
+                              <strong>Passport Number:</strong> {existingSubmission.passportNumber}
                             </Col>
                             <Col md={6}>
-                              <strong>VFS Center:</strong> {existingSubmission.vfsCenter}
+                              <strong>Full Name:</strong> {existingSubmission.fullName}
                             </Col>
                             <Col md={6}>
-                              <strong>Appointment Date:</strong> {existingSubmission.appointmentDate}
+                              <strong>Service Type:</strong> {existingSubmission.serviceType}
+                            </Col>
+                            <Col md={6}>
+                              <strong>Destination:</strong> {existingSubmission.destinationCountry}
                             </Col>
                             <Col md={6}>
                               <strong>Status:</strong> {getStatusBadge(existingSubmission.status)}
                             </Col>
+                            <Col md={6}>
+                              <strong>Submitted:</strong> {existingSubmission.submittedAt?.toDate?.().toLocaleDateString()}
+                            </Col>
                           </Row>
+                          {existingSubmission.document && (
+                            <div className="mt-3 text-center">
+                              <Button
+                                variant="outline-success"
+                                size="sm"
+                                onClick={() => downloadDocument(existingSubmission.document.base64Data, existingSubmission.document.fileName)}
+                              >
+                                <i className="fas fa-download me-1"></i>
+                                Download Submitted Document
+                              </Button>
+                            </div>
+                          )}
                         </Card.Body>
                       </Card>
                     )}
                   </div>
                 ) : (
                   <Form onSubmit={handleSubmit}>
-                    <Row>
-                      {/* VLN Information */}
-                      <Col lg={6}>
-                        <Form.Group className="mb-4">
+                    {/* Personal Information */}
+                    <Row className="mb-4">
+                      <Col lg={12}>
+                        <h5 className="fw-bold text-primary mb-3">
+                          <i className="fas fa-user me-2"></i>
+                          Personal Information
+                        </h5>
+                      </Col>
+                      
+                      <Col md={6} lg={4}>
+                        <Form.Group className="mb-3">
                           <Form.Label className="fw-semibold">
-                            <i className="fas fa-hashtag me-2 text-primary"></i>
-                            Visa Lodgement Number (VLN) *
+                            Passport Number *
                           </Form.Label>
                           <Form.Control
                             type="text"
-                            name="vlnNumber"
-                            value={formData.vlnNumber}
-                            onChange={handleInputChange}
-                            placeholder="e.g., VLN2024123456"
-                            className="py-3"
+                            name="passportNumber"
+                            value={formData.passportNumber}
+                            onChange={(e) => {
+                              e.target.value = e.target.value.toUpperCase();
+                              handleInputChange(e);
+                            }}
+                            placeholder="A12345678"
+                            className="py-2"
                             required
+                            maxLength={9}
                           />
                           <Form.Text className="text-muted">
-                            Your unique Visa Lodgement Number from ImmiAccount
+                            6-9 alphanumeric characters
                           </Form.Text>
                         </Form.Group>
                       </Col>
 
-                      <Col lg={6}>
-                        <Form.Group className="mb-4">
+                      <Col md={6} lg={4}>
+                        <Form.Group className="mb-3">
                           <Form.Label className="fw-semibold">
-                            <i className="fas fa-map-marker-alt me-2 text-primary"></i>
-                            VFS Global Center *
+                            Full Name *
+                          </Form.Label>
+                          <Form.Control
+                            type="text"
+                            name="fullName"
+                            value={formData.fullName}
+                            onChange={handleInputChange}
+                            placeholder="Your full name"
+                            className="py-2"
+                            required
+                          />
+                        </Form.Group>
+                      </Col>
+
+                      <Col md={6} lg={4}>
+                        <Form.Group className="mb-3">
+                          <Form.Label className="fw-semibold">
+                            Date of Birth *
+                          </Form.Label>
+                          <Form.Control
+                            type="date"
+                            name="dateOfBirth"
+                            value={formData.dateOfBirth}
+                            onChange={handleInputChange}
+                            className="py-2"
+                            required
+                          />
+                        </Form.Group>
+                      </Col>
+
+                      <Col md={6} lg={4}>
+                        <Form.Group className="mb-3">
+                          <Form.Label className="fw-semibold">
+                            Nationality *
                           </Form.Label>
                           <Form.Select
-                            name="vfsCenter"
-                            value={formData.vfsCenter}
+                            name="nationality"
+                            value={formData.nationality}
                             onChange={handleInputChange}
-                            className="py-3"
+                            className="py-2"
                             required
                           >
-                            <option value="">Select VFS Center</option>
-                            {vfsCenters.map(center => (
-                              <option key={center} value={center}>{center}</option>
+                            <option value="">Select Nationality</option>
+                            {nationalities.map(nationality => (
+                              <option key={nationality} value={nationality}>{nationality}</option>
+                            ))}
+                          </Form.Select>
+                        </Form.Group>
+                      </Col>
+
+                      <Col md={6} lg={4}>
+                        <Form.Group className="mb-3">
+                          <Form.Label className="fw-semibold">
+                            Contact Number
+                          </Form.Label>
+                          <Form.Control
+                            type="tel"
+                            name="contactNumber"
+                            value={formData.contactNumber}
+                            onChange={handleInputChange}
+                            placeholder="+880 XXXX-XXXXXX"
+                            className="py-2"
+                          />
+                        </Form.Group>
+                      </Col>
+
+                      <Col md={6} lg={4}>
+                        <Form.Group className="mb-3">
+                          <Form.Label className="fw-semibold">
+                            Email Address
+                          </Form.Label>
+                          <Form.Control
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            placeholder="your.email@example.com"
+                            className="py-2"
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+
+                    {/* Service Details */}
+                    <Row className="mb-4">
+                      <Col lg={12}>
+                        <h5 className="fw-bold text-primary mb-3">
+                          <i className="fas fa-briefcase me-2"></i>
+                          Service Details
+                        </h5>
+                      </Col>
+
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label className="fw-semibold">
+                            Service Type *
+                          </Form.Label>
+                          <Form.Select
+                            name="serviceType"
+                            value={formData.serviceType}
+                            onChange={handleInputChange}
+                            className="py-2"
+                            required
+                          >
+                            <option value="">Select Service Type</option>
+                            {serviceTypes.map(type => (
+                              <option key={type} value={type}>{type}</option>
+                            ))}
+                          </Form.Select>
+                        </Form.Group>
+                      </Col>
+
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label className="fw-semibold">
+                            Destination Country *
+                          </Form.Label>
+                          <Form.Select
+                            name="destinationCountry"
+                            value={formData.destinationCountry}
+                            onChange={handleInputChange}
+                            className="py-2"
+                            required
+                          >
+                            <option value="">Select Destination</option>
+                            {destinationCountries.map(country => (
+                              <option key={country} value={country}>{country}</option>
                             ))}
                           </Form.Select>
                         </Form.Group>
                       </Col>
                     </Row>
 
-                    <Row>
-                      <Col lg={6}>
-                        <Form.Group className="mb-4">
-                          <Form.Label className="fw-semibold">
-                            <i className="fas fa-calendar me-2 text-primary"></i>
-                            Appointment Date *
-                          </Form.Label>
-                          <Form.Control
-                            type="date"
-                            name="appointmentDate"
-                            value={formData.appointmentDate}
-                            onChange={handleInputChange}
-                            className="py-3"
-                            required
-                          />
-                        </Form.Group>
+                    {/* Document Upload */}
+                    <Row className="mb-4">
+                      <Col lg={12}>
+                        <h5 className="fw-bold text-primary mb-3">
+                          <i className="fas fa-file-upload me-2"></i>
+                          Document Upload
+                        </h5>
                       </Col>
 
-                      <Col lg={6}>
-                        <Form.Group className="mb-4">
-                          <Form.Label className="fw-semibold">
-                            <i className="fas fa-clock me-2 text-primary"></i>
-                            Appointment Time
-                          </Form.Label>
-                          <Form.Control
-                            type="time"
-                            name="appointmentTime"
-                            value={formData.appointmentTime}
-                            onChange={handleInputChange}
-                            className="py-3"
-                          />
-                        </Form.Group>
-                      </Col>
-                    </Row>
-
-                    {/* Document Upload Sections */}
-                    <Row>
-                      <Col lg={6}>
-                        <Card className="h-100 border-2">
-                          <Card.Header className="bg-light">
-                            <h6 className="mb-0">
-                              <i className="fas fa-file-contract me-2 text-primary"></i>
-                              VLN Document *
-                            </h6>
-                          </Card.Header>
-                          <Card.Body>
+                      <Col lg={12}>
+                        <Card className="border-2 border-dashed">
+                          <Card.Body className="text-center p-4">
                             <Form.Group>
-                              <Form.Label>Upload VLN Confirmation</Form.Label>
+                              <Form.Label className="fw-semibold">
+                                Upload Your Passport or CV *
+                              </Form.Label>
                               <Form.Control
                                 type="file"
-                                name="vlnDocument"
+                                name="documentFile"
                                 onChange={handleFileChange}
                                 accept=".jpg,.jpeg,.png,.pdf"
+                                className="mb-3"
                                 required
                                 disabled={loading}
                               />
-                              <Form.Text className="text-muted">
-                                Upload your Visa Lodgement Number confirmation (PDF, JPG, PNG) - Max 2MB
+                              <Form.Text className="text-muted d-block">
+                                Upload your passport bio page or CV (PDF, JPG, PNG) - Max 2MB for base64 storage
                               </Form.Text>
                             </Form.Group>
-                            {formData.vlnDocument && (
+                            
+                            {formData.documentFile && (
                               <div className="mt-3">
                                 <Alert variant="success" className="py-2 small">
                                   <div className="d-flex justify-content-between align-items-center">
                                     <div>
                                       <i className="fas fa-check me-2"></i>
-                                      {formData.vlnDocument.name} 
+                                      {formData.documentFile.name}
                                       <small className="text-muted ms-2">
-                                        ({(formData.vlnDocument.size / 1024 / 1024).toFixed(2)} MB)
+                                        ({(formData.documentFile.size / 1024 / 1024).toFixed(2)} MB)
                                       </small>
                                     </div>
                                     <div>
-                                      {formData.vlnDocumentPreview && (
+                                      {formData.documentPreview && (
                                         <Button
                                           variant="outline-primary"
                                           size="sm"
                                           className="me-2"
-                                          onClick={() => previewDocument('vln')}
+                                          onClick={previewDocument}
                                         >
                                           <i className="fas fa-eye me-1"></i>
                                           Preview
@@ -546,70 +752,7 @@ function Biometric() {
                                       <Button
                                         variant="outline-success"
                                         size="sm"
-                                        onClick={() => downloadDocument(formData.vlnDocumentBase64, formData.vlnDocument.name)}
-                                      >
-                                        <i className="fas fa-download me-1"></i>
-                                        Download
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </Alert>
-                              </div>
-                            )}
-                          </Card.Body>
-                        </Card>
-                      </Col>
-
-                      <Col lg={6}>
-                        <Card className="h-100 border-2">
-                          <Card.Header className="bg-light">
-                            <h6 className="mb-0">
-                              <i className="fas fa-calendar-check me-2 text-success"></i>
-                              Appointment Confirmation *
-                            </h6>
-                          </Card.Header>
-                          <Card.Body>
-                            <Form.Group>
-                              <Form.Label>Upload Appointment Letter</Form.Label>
-                              <Form.Control
-                                type="file"
-                                name="appointmentDocument"
-                                onChange={handleFileChange}
-                                accept=".jpg,.jpeg,.png,.pdf"
-                                required
-                                disabled={loading}
-                              />
-                              <Form.Text className="text-muted">
-                                Upload your VFS biometric appointment confirmation (PDF, JPG, PNG) - Max 2MB
-                              </Form.Text>
-                            </Form.Group>
-                            {formData.appointmentDocument && (
-                              <div className="mt-3">
-                                <Alert variant="success" className="py-2 small">
-                                  <div className="d-flex justify-content-between align-items-center">
-                                    <div>
-                                      <i className="fas fa-check me-2"></i>
-                                      {formData.appointmentDocument.name}
-                                      <small className="text-muted ms-2">
-                                        ({(formData.appointmentDocument.size / 1024 / 1024).toFixed(2)} MB)
-                                      </small>
-                                    </div>
-                                    <div>
-                                      {formData.appointmentDocumentPreview && (
-                                        <Button
-                                          variant="outline-primary"
-                                          size="sm"
-                                          className="me-2"
-                                          onClick={() => previewDocument('appointment')}
-                                        >
-                                          <i className="fas fa-eye me-1"></i>
-                                          Preview
-                                        </Button>
-                                      )}
-                                      <Button
-                                        variant="outline-success"
-                                        size="sm"
-                                        onClick={() => downloadDocument(formData.appointmentDocumentBase64, formData.appointmentDocument.name)}
+                                        onClick={() => downloadDocument(formData.documentBase64, formData.documentFile.name)}
                                       >
                                         <i className="fas fa-download me-1"></i>
                                         Download
@@ -625,18 +768,18 @@ function Biometric() {
                     </Row>
 
                     {/* Additional Notes */}
-                    <Form.Group className="mb-4 mt-4">
+                    <Form.Group className="mb-4">
                       <Form.Label className="fw-semibold">
                         <i className="fas fa-sticky-note me-2 text-primary"></i>
                         Additional Notes
                       </Form.Label>
                       <Form.Control
                         as="textarea"
-                        rows={4}
+                        rows={3}
                         name="additionalNotes"
                         value={formData.additionalNotes}
                         onChange={handleInputChange}
-                        placeholder="Any additional information or special requirements..."
+                        placeholder="Any additional information about your skills, experience, or preferences..."
                       />
                     </Form.Group>
 
@@ -659,12 +802,12 @@ function Biometric() {
                               aria-hidden="true"
                               className="me-2"
                             />
-                            Processing Documents...
+                            Processing Application...
                           </>
                         ) : (
                           <>
                             <i className="fas fa-paper-plane me-2"></i>
-                            Submit Documents
+                            Submit Application
                           </>
                         )}
                       </Button>
@@ -686,15 +829,15 @@ function Biometric() {
                     <ul className="list-unstyled">
                       <li className="mb-2">
                         <i className="fas fa-check text-success me-2"></i>
-                        Documents must be clear and readable
+                        One application allowed per user
+                      </li>
+                      <li className="mb-2">
+                        <i className="fas fa-check text-success me-2"></i>
+                        Documents stored as base64 data
                       </li>
                       <li className="mb-2">
                         <i className="fas fa-check text-success me-2"></i>
                         Maximum file size: 2MB per document
-                      </li>
-                      <li className="mb-2">
-                        <i className="fas fa-check text-success me-2"></i>
-                        Accepted formats: PDF, JPG, PNG
                       </li>
                     </ul>
                   </Col>
@@ -705,13 +848,31 @@ function Biometric() {
                         Processing time: 24-48 hours
                       </li>
                       <li className="mb-2">
-                        <i className="fas fa-database text-info me-2"></i>
-                        Documents stored as base64 data
+                        <i className="fas fa-file text-info me-2"></i>
+                        Accepted formats: PDF, JPG, PNG
                       </li>
                       <li className="mb-2">
-                        <i className="fas fa-user-lock text-danger me-2"></i>
-                        One submission allowed per user
+                        <i className="fas fa-envelope text-primary me-2"></i>
+                        You'll receive email notifications
                       </li>
+                    </ul>
+                  </Col>
+                </Row>
+                <hr />
+                <h6 className="fw-semibold">Available Job Categories:</h6>
+                <Row>
+                  <Col md={6}>
+                    <ul className="small text-muted">
+                      <li><strong>Skilled Workers:</strong> Engineers, IT Professionals, Accountants</li>
+                      <li><strong>Semi-Skilled:</strong> Technicians, Machine Operators</li>
+                      <li><strong>Hospitality:</strong> Hotel Staff, Restaurant Workers</li>
+                    </ul>
+                  </Col>
+                  <Col md={6}>
+                    <ul className="small text-muted">
+                      <li><strong>Construction:</strong> Laborers, Masons, Carpenters</li>
+                      <li><strong>Domestic:</strong> Housekeepers, Caregivers</li>
+                      <li><strong>Drivers:</strong> Truck, Bus, and Personal Drivers</li>
                     </ul>
                   </Col>
                 </Row>
@@ -742,7 +903,7 @@ function Biometric() {
       </Modal>
 
       <style jsx>{`
-        .visa-document-page {
+        .manpower-service-page {
           background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
           min-height: 100vh;
         }
@@ -788,6 +949,10 @@ function Biometric() {
           box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
         }
         
+        .border-dashed {
+          border-style: dashed !important;
+        }
+        
         @keyframes float {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-10px); }
@@ -812,7 +977,7 @@ function Biometric() {
 
 
         <Container>
-          <BiometricPayment/>
+          <ManpowerServicePayment/>
         </Container>
 
 
@@ -820,4 +985,4 @@ function Biometric() {
   );
 }
 
-export default Biometric;
+export default ManpowerService;

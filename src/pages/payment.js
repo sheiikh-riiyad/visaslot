@@ -20,7 +20,7 @@ function Payment() {
   const mobileNumbers = {
     Bkash: "01978630489",
     Nagad: "01978630489",
-    Rocket: "01978630489",
+    Rocket: "API fetching..",
   };
 
   const bankAccounts = {

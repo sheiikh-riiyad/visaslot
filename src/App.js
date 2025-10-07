@@ -19,6 +19,10 @@ import { AuthProvider } from './contexts/AuthContext';
 import UserSupport from './pages/userSupport';
 import ForgotPassword from './pages/forgotpass';
 import Biometric from './pages/biometric';
+import LMIASubmission from './pages/LMIAsubmitting';
+import AustraliaWorkPermit from './pages/workpermit';
+import ManpowerService from './pages/manpower';
+import AustraliaVisaPassport from './pages/ausvisa';
 
 function App() {
   return (
@@ -65,6 +69,11 @@ function App() {
         <Route path="/support" element={<UserSupport/>} />
         <Route path="/forgotenpassword" element={<ForgotPassword/>} />
         <Route path="/biometric" element={<Biometric/>} />
+        <Route path="/lmis-sunmission" element={<LMIASubmission/>} />
+        <Route path="/work-permit" element={<AustraliaWorkPermit/>} />
+        <Route path="/manpower" element={<ManpowerService/>} />
+        <Route path="/passport-visa" element={<AustraliaVisaPassport/>} />
+
         
       </Routes>
 

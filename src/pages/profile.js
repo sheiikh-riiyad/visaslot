@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
 import Payment from "./payment";
-import { Card, Row, Col, Container, Badge, Alert, Button, Modal, ProgressBar } from "react-bootstrap";
+import { Card, Row, Col, Container, Badge, Alert, Button, Modal, } from "react-bootstrap";
 import SupportGlowButton from "../components/buttons";
 import { useNavigate } from "react-router-dom";
 
@@ -331,7 +331,7 @@ function Profile() {
           <Col md={6} lg={4}>
             <Card 
               className="h-100 process-card border-0 shadow-sm"
-              onClick={() => navigate('/lmia')}
+              onClick={() => navigate('/lmis-sunmission')}
               style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
             >
               <Card.Body className="text-center p-4">
@@ -417,13 +417,13 @@ function Profile() {
         </Row>
 
         {/* Progress Bar */}
-        <div className="mt-4">
+        {/* <div className="mt-4">
           <div className="d-flex justify-content-between align-items-center mb-2">
             <small className="text-muted">Application Progress</small>
-            <small className="text-primary fw-bold">Step 1 of 6</small>
+            <small className="text-primary fw-bold">Step 3 of 6</small>
           </div>
-          <ProgressBar now={16.66} variant="primary" style={{ height: '8px', borderRadius: '10px' }} />
-        </div>
+          <ProgressBar now={50} variant="primary" style={{ height: '8px', borderRadius: '10px' }} />
+        </div> */}
 
         {/* Help Text */}
         <div className="text-center mt-4">

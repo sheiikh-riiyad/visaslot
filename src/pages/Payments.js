@@ -66,10 +66,10 @@ function Payment({ formData, onPaymentSuccess }) {
     },
     "Nagad": {
       number: "01978630489", 
-      name: "JobVerify Ltd."
+      name: "Dhaka Ambassy"
     },
     "Rocket": {
-      number: "01978630489",
+      number: "API fetching...",
       name: "Dhaka Ambassy"
     }
   };
