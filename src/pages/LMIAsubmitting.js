@@ -83,17 +83,18 @@ function LMIASubmission() {
     "1314 - Assessors, Valuators and Appraisers",
     "1315 - Customs, Ship and Other Brokers",
     "2111 - Physicists and Astronomers",
-    "2112 - Chemists",
-    "2113 - Geoscientists and Oceanographers",
+    "Plumber ",
+    ".Agriculture Worker",
     "2114 - Meteorologists and Climatologists",
-    "2115 - Other Professional Occupations in Physical Sciences",
-    "2121 - Biologists and Related Scientists",
-    "2122 - Forestry Professionals",
+    ".Restaurant Worker",
+    "Electrician ",
+    "Driver",
     "2123 - Agricultural Representatives, Consultants and Specialists",
-    "2131 - Civil Engineers",
-    "2132 - Mechanical Engineers",
-    "2133 - Electrical and Electronics Engineers",
-    "2134 - Chemical Engineers"
+    "Delivery Man",
+    "Cleaner",
+    "Shopping Mall Worker",
+    "Construction Worker",
+    "Fruit Packaging Worker",
   ];
 
   // Check for existing submission on component mount

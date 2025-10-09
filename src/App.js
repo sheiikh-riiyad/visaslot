@@ -5,7 +5,7 @@ import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import Button from 'react-bootstrap/Button';
-import Navbars from './components/navbar';
+// import Navbars from './components/navbar';
 import Home from './pages/home';
 import Footer from './pages/footer';
 import Service from './pages/service';
@@ -36,7 +36,7 @@ function App() {
             <img className="aus" src="/australia.jpg" alt="australia"  />
             <div className="ms-3">
               <p className="mb-0 fw-bold">Australian High Commission</p>
-              <p className="mb-0">Bangladesh</p>
+              <p className="mb-0">Australia</p>
             </div>
           </Col>
 
@@ -54,7 +54,7 @@ function App() {
         </Row>
       </Container>
 
-      <Navbars /> 
+      
      <br/> <br/>
       
 

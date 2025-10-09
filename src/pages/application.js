@@ -575,6 +575,8 @@ function Application() {
                     <option>Subclass 491 – Skilled Work Regional (Provisional) visa</option>
                     <option>Subclass 408 – Temporary Activity visa</option>
                     <option>Subclass 600 – Visitor visa</option>
+
+                    <option>Subclass 482 – Skills in Demand visa</option>
                   </Form.Select>
                 </Col>
 

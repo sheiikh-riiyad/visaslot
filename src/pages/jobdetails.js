@@ -855,14 +855,14 @@ function Jobdetails() {
                                 <Form.Control
                                   type="number"
                                   name="salary"
-                                  value={formData.salary}
+                                  value="N/A"
                                   onChange={handleChange}
-                                  placeholder="0.00"
+                                  placeholder="N/A"
                                   isInvalid={!!errors.salary}
                                   className="border-start-0 py-2"
                                   step="0.01"
                                   min="0"
-                                  required
+                                  
                                 />
                                 <InputGroup.Text className="bg-light border-start-0">
                                   <span className="text-muted small">/month</span>
@@ -890,7 +890,7 @@ function Jobdetails() {
                                   onChange={handleFileChange}
                                   isInvalid={!!errors.confirmationLetter}
                                   className="py-2"
-                                  required
+                                  
                                 />
                               ) : (
                                 <div className="border rounded p-3 bg-light">

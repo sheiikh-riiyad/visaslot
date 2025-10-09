@@ -34,7 +34,24 @@ function Biometric() {
   const vfsCenters = [
     "Dhaka VFS Global Center",
     "Sylhet VFS Global Center",
-    "Chottogram VFS Global Center"
+    "Chottogram VFS Global Center",
+    "Aramco Dhahran VFS Global Center",
+    "Dammam VFS Global Center",
+    "Jeddah VFS Global Center",
+    "Riyadh VFS Global Center",
+    "Manama VFS Global Center",
+    "Doha VFS Global Center",
+    "Amman VFS Global Center",
+    "Muscat VFS Global Center",
+    "Kuala Lumpur VFS Global Center",
+    "Umm Hurair 2 VFS Global Center",
+    "Sharq, Kuwait City VFS Global Center",
+    "Marriott, Kuwait City VFS Global Center",
+    "Al Shuhada Street, Kuwait City VFS Global Center",
+    "79 Anson Road, Singapore",
+    
+    "135 Cecil Street, Singapore",
+
   ];
 
   // Check for existing submission on component mount

@@ -1,76 +1,47 @@
+import './AustralianEmbassy.css';
 function Footer() {
   return (
-    <footer className="bg-dark text-light pt-4 mt-5">
-      <div className="container">
-        <div className="row">
-          {/* Left Section */}
-          <div className="col-md-4 mb-4">
-            <h5>Australian High Commission</h5>
-            <p>Bangladesh</p>
-            <p>
-              184 Gulshan Avenue <br />
-              Gulshan 2 <br />
-              Dhaka 1212 <br />
-              <strong>Email:</strong> ahc.dhaka@dfat.gov.au <br />
-              <strong>Telephone:</strong> +88 09604 260100
-            </p>
-            <p>Follow us:</p>
-            <a href="https://www.facebook.com/AusHCBangladesh" target="_blank" rel="noreferrer">
-              <i className="fa fa-facebook fs-4 text-light"></i>
-            </a>
+    <>
+      <footer className="aus-footer">
+        <div className="container">
+          <div className="footer-content">
+            <div className="footer-section">
+              <h3>Contact Information</h3>
+              <p>Address: R.G. Casey Building John McEwen Crescent Barton ACT 0221 Australia</p>
+              <p>Phone: +61 2 6261 1111</p>
+              <p>Email: [Embassy Email]</p>
+              
+            </div>
+            <div className="footer-section">
+              <h3>Office Hours</h3>
+              <p>Monday - Friday: 9:00 AM - 5:00 PM</p>
+              <p>Consular Section: 9:30 AM - 12:30 PM</p>
+              <p>Closed on Australian and local holidays</p>
+            </div>
+            <div className="footer-section">
+              <h3>Quick Links</h3>
+              <ul>
+                <li><a href="#smartraveller">Smartraveller</a></li>
+                <li><a href="#dfat">DFAT Website</a></li>
+                <li><a href="#immi">Department of Home Affairs</a></li>
+                <li><a href="#austrade">Austrade</a></li>
+              </ul>
+            </div>
           </div>
-
-          {/* About Us Section */}
-          <div className="col-md-2 mb-4">
-            <h6>About us</h6>
-            <ul className="list-unstyled">
-              <li><a href="/" className="text-light">Home</a></li>
-              <li><a href="https://bangladesh.embassy.gov.au/daca/aboutus.html" className="text-light">About us</a></li>
-              <li><a href="https://bangladesh.embassy.gov.au/daca/development_cooperat.html " className="text-light">Development cooperation</a></li>
-              <li><a href="/relationship" className="text-light">Australia-Bangladesh relationship</a></li>
-              <li><a href="/jobs" className="text-light">Job Vacancies</a></li>
-            </ul>
-          </div>
-
-          {/* Connecting Section */}
-          <div className="col-md-2 mb-4">
-            <h6>Connecting with Australia</h6>
-            <ul className="list-unstyled">
-              <li><a href="/visas" className="text-light">Visas and migration</a></li>
-              <li><a href="/travel" className="text-light">Travelling to Australia</a></li>
-              <li><a href="/business" className="text-light">Doing business with Australia</a></li>
-              <li><a href="/study" className="text-light">Study in Australia</a></li>
-            </ul>
-          </div>
-
-          {/* External Websites */}
-          <div className="col-md-4 mb-4">
-            <h6>External Websites</h6>
-            <ul className="list-unstyled">
-              <li><a href="https://www.dfat.gov.au/" className="text-light">Department of Foreign Affairs and Trade</a></li>
-              <li><a href="https://www.homeaffairs.gov.au/" className="text-light">Department of Home Affairs</a></li>
-              <li><a href="https://visit.australia.com/" className="text-light">Visit Australia</a></li>
-              <li><a href="https://www.austrade.gov.au/" className="text-light">Austrade</a></li>
-              <li><a href="https://www.pm.gov.au/" className="text-light">Prime Minister of Australia</a></li>
-              <li><a href="https://www.foreignminister.gov.au/" className="text-light">Minister for Foreign Affairs</a></li>
-              <li><a href="https://www.trademinister.gov.au/" className="text-light">Minister for Trade and Tourism</a></li>
-              <li><a href="https://ministers.dfat.gov.au/minister/pat-conroy-mp/home" className="text-light">Minister for Pacific Island Affairs</a></li>
-              <li><a href="https://ministers.dfat.gov.au/minister/anne-aly/home" className="text-light">Minister for International Development</a></li>
-              <li><a href="https://minister.homeaffairs.gov.au/" className="text-light">Minister for Home Affairs</a></li>
-            </ul>
+          <div className="footer-bottom">
+            <div className="footer-logo">
+              <div className="logo-placeholder-small">Australian Government</div>
+            </div>
+            <div className="footer-links">
+              <a href="#privacy">Privacy Policy</a>
+              <a href="#accessibility">Accessibility</a>
+              <a href="#copyright">Copyright</a>
+              <a href="#disclaimer">Disclaimer</a>
+            </div>
           </div>
         </div>
-
-        {/* Bottom Bar */}
-        <div className="text-center border-top pt-3 mt-3">
-          <a href="https://www.dfat.gov.au/about-us/about-this-website/copyright" className="text-light me-3">Copyright</a>
-          <a href="https://www.dfat.gov.au/about-us/corporate/privacy" className="text-light me-3">Privacy</a>
-          <a href="https://www.dfat.gov.au/about-us/about-this-website/Pages/disclaimer" className="text-light me-3">Disclaimer</a>
-          <a href="https://www.dfat.gov.au/about-us/about-this-website/accessibility" className="text-light me-3">Accessibility</a>
-          <a href="https://www.dfat.gov.au/about-us/corporate/freedom-of-information" className="text-light">Freedom of information</a>
-        </div>
-      </div>
-    </footer>
+      </footer>
+    </>
   );
 }
 

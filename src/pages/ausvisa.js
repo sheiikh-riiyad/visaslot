@@ -1,26 +1,24 @@
 // src/pages/AustraliaVisaPassport.js
-import { useState,  } from "react";
-import { Card, Container, Row, Col, Alert, Spinner, Button, Badge, Modal, Tabs, Tab } from "react-bootstrap";
-import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import { Card, Container, Row, Col, Alert, Spinner, Button, Badge, Modal } from "react-bootstrap";
+import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { app } from "../firebaseConfig";
 
-import { Link } from "react-router-dom";
-
-const db = getFirestore(app); 
+const db = getFirestore(app);
 const auth = getAuth(app);
 
 function AustraliaVisaPassport() {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertVariant, setAlertVariant] = useState("success");
   const [showPreview, setShowPreview] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
   const [previewTitle, setPreviewTitle] = useState("");
-  const [userData, setUserData] = useState(null);
-  const [visaData, setVisaData] = useState(null);
-  const [passportData, setPassportData] = useState(null);
+  // const [userData, setUserData] = useState(null);
+  const [userDocument, setUserDocument] = useState(null);
+  const [dataPathCreated, setDataPathCreated] = useState(false);
 
   const showMessage = (message, variant = "success") => {
     setAlertMessage(message);
@@ -29,131 +27,136 @@ function AustraliaVisaPassport() {
     setTimeout(() => setShowAlert(false), 5000);
   };
 
-  // Fetch user's Australia visa and passport data
-  const fetchUserData = async () => {
+  // Check if data path already exists
+  const checkDataPathStatus = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const userDocumentRef = doc(db, "userDocuments", user.uid);
+      const documentSnap = await getDoc(userDocumentRef);
+      
+      if (documentSnap.exists()) {
+        setUserDocument(documentSnap.data());
+        setDataPathCreated(true);
+        showMessage("✅ Your document path is ready! Admin will upload your data soon.", "info");
+      }
+    } catch (error) {
+      console.error("Error checking data path:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Create blank data path in Firebase
+  const createDataPath = async () => {
     const user = auth.currentUser;
     if (!user) {
-      showMessage("❌ Please log in to view your documents", "danger");
-      setLoading(false);
+      showMessage("❌ Please log in first", "danger");
       return;
     }
 
     try {
       setLoading(true);
 
-      // Fetch user's basic data from users collection
-      const userDocRef = doc(db, "users", user.uid);
-      const userDocSnap = await getDoc(userDocRef);
-      
-      if (userDocSnap.exists()) {
-        setUserData(userDocSnap.data());
-      }
+      // Create blank document structure for admin to populate later
+      const blankDocumentData = {
+        userId: user.uid,
+        userEmail: user.email,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        // Blank fields for admin to fill
+        passportData: {
+          passportNumber: "",
+          givenName: "",
+          surname: "",
+          nationality: "",
+          dateOfBirth: "",
+          gender: "",
+          issueDate: "",
+          expiryDate: "",
+          issuingAuthority: ""
+        },
+        visaData: {
+          documentType: "",
+          visaSubclass: "",
+          validUntil: "",
+          status: "pending"
+        },
+        // Document will be uploaded by admin as Base64
+        documents: {
+          passport: {
+            fileName: "",
+            fileType: "",
+            fileSize: 0,
+            base64Data: "",
+            uploadedAt: null
+          },
+          visa: {
+            fileName: "",
+            fileType: "",
+            fileSize: 0,
+            base64Data: "", 
+            uploadedAt: null
+          }
+        },
+        // Admin metadata
+        adminNotes: "",
+        lastUpdatedByAdmin: null,
+        dataPathCreated: true
+      };
 
-      // Fetch Australia visa data from australiavisa collection
-      const australiaVisaQuery = query(
-        collection(db, "australiavisa"),
-        where("userId", "==", user.uid)
-      );
-      
-      const visaSnapshot = await getDocs(australiaVisaQuery);
-      if (!visaSnapshot.empty) {
-        const visaDoc = visaSnapshot.docs[0];
-        const visaData = visaDoc.data();
+      // Create the document with user UID as document ID
+      const userDocumentRef = doc(db, "userDocuments", user.uid);
+      await setDoc(userDocumentRef, blankDocumentData);
 
-        console.log(visaData)
-        
-        // Fetch the data subcollection for this visa document
-        const dataSubcollectionRef = collection(db, "australiavisa", visaDoc.id, "data");
-        const dataSnapshot = await getDocs(dataSubcollectionRef);
-        
-        if (!dataSnapshot.empty) {
-          const allData = dataSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setVisaData(allData);
-        } else {
-          setVisaData([]);
-        }
-      }
-
-      // Fetch passport data (assuming similar structure)
-      const passportQuery = query(
-        collection(db, "australiaPassports"),
-        where("userId", "==", user.uid)
-      );
-      
-      const passportSnapshot = await getDocs(passportQuery);
-      if (!passportSnapshot.empty) {
-        const passportDoc = passportSnapshot.docs[0];
-        setPassportData(passportDoc.data());
-      }
+      showMessage("✅ Data path created successfully! Admin will now upload your documents.");
+      setDataPathCreated(true);
+      setUserDocument(blankDocumentData);
 
     } catch (error) {
-      console.error("Error fetching user data:", error);
-      showMessage("❌ Failed to load your documents. Please try again.", "danger");
+      console.error("Error creating data path:", error);
+      showMessage("❌ Failed to create data path. Please try again.", "danger");
     } finally {
       setLoading(false);
     }
   };
 
-  // useEffect(() => {
-  //   fetchUserData();
-  // }, []);
+  useEffect(() => {
+    checkDataPathStatus();
+  }, []);
 
-  const previewDocument = (base64Data, title) => {
-    if (base64Data) {
-      setPreviewImage(base64Data);
-      setPreviewTitle(title);
-      setShowPreview(true);
+  const previewDocument = (documentData, title) => {
+    if (!documentData || !documentData.base64Data) {
+      showMessage("❌ No document available for preview", "warning");
+      return;
     }
-  };
-
-  const downloadDocument = (base64Data, fileName) => {
-    const link = document.createElement('a');
-    link.href = base64Data;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    setPreviewImage(documentData.base64Data);
+    setPreviewTitle(title);
+    setShowPreview(true);
   };
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      active: { variant: "success", text: "Active" },
-      expired: { variant: "danger", text: "Expired" },
       pending: { variant: "warning", text: "Pending" },
       approved: { variant: "success", text: "Approved" },
       rejected: { variant: "danger", text: "Rejected" },
-      submitted: { variant: "info", text: "Under Review" }
+      uploaded: { variant: "info", text: "Documents Uploaded" }
     };
-    
     const config = statusConfig[status] || { variant: "secondary", text: "Unknown" };
     return <Badge bg={config.variant}>{config.text}</Badge>;
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    const date = dateString.toDate ? dateString.toDate() : new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="australia-visa-page">
-        <Container className="py-5">
-          <Row className="justify-content-center">
-            <Col lg={8} className="text-center">
-              <Spinner animation="border" variant="primary" className="mb-3" />
-              <h4>Loading your Australia documents...</h4>
-              <p className="text-muted">Please wait while we fetch your visa and passport information.</p>
-            </Col>
-          </Row>
-        </Container>
-      </div>
-    );
-  }
+  // const formatDate = (dateString) => {
+  //   if (!dateString) return "Not set";
+  //   try {
+  //     const date = dateString.toDate ? dateString.toDate() : new Date(dateString);
+  //     return date.toLocaleDateString('en-US');
+  //   } catch (error) {
+  //     return "Invalid Date";
+  //   }
+  // };
 
   return (
     <div className="australia-visa-page">
@@ -162,368 +165,118 @@ function AustraliaVisaPassport() {
           <Col lg={10} xl={8}>
             {/* Header Section */}
             <div className="text-center mb-5">
-              <div className="document-icon mb-3">
-                <i className="fas fa-file-contract fa-3x text-primary"></i>
-              </div>
               <h1 className="fw-bold text-gradient">Australia Visa & ePassport</h1>
-              <p className="lead text-muted">
-                View your Australian visa and ePassport documents
-              </p>
+              <p className="lead text-muted">Check your document status</p>
             </div>
 
             {/* Alert Message */}
             {showAlert && (
               <Alert variant={alertVariant} className="mb-4" dismissible onClose={() => setShowAlert(false)}>
-                <div className="d-flex align-items-center">
-                  <i className={`fas ${
-                    alertVariant === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'
-                  } me-2`}></i>
-                  {alertMessage}
-                </div>
+                {alertMessage}
               </Alert>
             )}
 
-            {/* Main Content Tabs */}
+            {/* Main Content */}
             <Card className="shadow-lg border-0">
               <Card.Header className="bg-primary text-white py-3">
                 <h4 className="mb-0">
-                  <i className="fas fa-passport me-2"></i>
-                  My Australia Documents
+                  <i className="fas fa-file-contract me-2"></i>
+                  Document Status
                 </h4>
               </Card.Header>
-              <Card.Body className="p-0">
-                <Tabs defaultActiveKey="visa" className="p-3">
-                  {/* Visa Tab */}
-                  <Tab eventKey="visa" title={
-                    <span>
-                      <i className="fas fa-stamp me-1"></i>
-                      Visa Documents
-                      {visaData && visaData.length > 0 && (
-                        <Badge bg="success" className="ms-1">{visaData.length}</Badge>
-                      )}
-                    </span>
-                  }>
-                    <div className="p-3">
-                      {!visaData || visaData.length === 0 ? (
-                        <div className="text-center py-5">
-                          <i className="fas fa-file-alt fa-4x text-muted mb-3"></i>
-                          <h4 className="text-muted">No Visa Documents Found</h4>
-                          <p className="text-muted">
-                            Your visa documents will appear here once they are uploaded by the administrator.
-                          </p>
-                          <Button variant="primary" onClick={fetchUserData}>
-                            <i className="fas fa-sync me-2"></i>
-                            Refresh
-                          </Button>
-                        </div>
+              <Card.Body className="p-4 text-center">
+                
+                {!dataPathCreated ? (
+                  // Show Check Status button if no data path exists
+                  <div className="py-4">
+                    <i className="fas fa-search fa-4x text-muted mb-4"></i>
+                    <h4 className="text-gradient">Check Your Document Status</h4>
+                    <p className="text-muted mb-4">
+                      Click the button below to create your personal data space. 
+                      This will generate a secure location where administrators can upload your Australia visa and passport documents.
+                    </p>
+                    <Button 
+                      variant="primary" 
+                      size="lg"
+                      onClick={createDataPath}
+                      disabled={loading}
+                      className="px-5"
+                    >
+                      {loading ? (
+                        <>
+                          <Spinner animation="border" size="sm" className="me-2" />
+                          Creating Data Path...
+                        </>
                       ) : (
-                        <Row>
-                          {visaData.map((doc, index) => (
-                            <Col lg={6} key={doc.id} className="mb-4">
-                              <Card className="h-100 border-0 shadow-sm">
-                                <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-                                  <h6 className="mb-0">
-                                    <i className="fas fa-file-contract me-2 text-primary"></i>
-                                    {doc.documentType || `Visa Document ${index + 1}`}
-                                  </h6>
-                                  {doc.status && getStatusBadge(doc.status)}
-                                </Card.Header>
-                                <Card.Body>
-                                  <div className="mb-3">
-                                    <strong>Document Type:</strong> {doc.documentType || "Visa Document"}<br/>
-                                    <strong>Uploaded:</strong> {formatDate(doc.uploadedAt)}<br/>
-                                    {doc.validUntil && (
-                                      <><strong>Valid Until:</strong> {formatDate(doc.validUntil)}</>
-                                    )}
-                                    {doc.visaSubclass && (
-                                      <><strong>Visa Subclass:</strong> {doc.visaSubclass}</>
-                                    )}
-                                  </div>
-                                  
-                                  {doc.document && doc.document.base64Data && (
-                                    <div className="text-center">
-                                      <div className="mb-3">
-                                        {doc.document.fileType.startsWith('image/') ? (
-                                          <img
-                                            src={doc.document.base64Data}
-                                            alt={doc.document.fileName}
-                                            className="img-fluid rounded shadow-sm"
-                                            style={{ maxHeight: '200px', cursor: 'pointer' }}
-                                            onClick={() => previewDocument(doc.document.base64Data, doc.document.fileName)}
-                                          />
-                                        ) : (
-                                          <div className="text-center py-4 border rounded">
-                                            <i className="fas fa-file-pdf fa-3x text-danger mb-3"></i>
-                                            <p className="mb-2">{doc.document.fileName}</p>
-                                            <small className="text-muted">
-                                              PDF Document - {(doc.document.fileSize / 1024 / 1024).toFixed(2)} MB
-                                            </small>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="d-grid gap-2">
-                                        <Button
-                                          variant="outline-primary"
-                                          size="sm"
-                                          onClick={() => previewDocument(doc.document.base64Data, doc.document.fileName)}
-                                        >
-                                          <i className="fas fa-eye me-1"></i>
-                                          Preview Document
-                                        </Button>
-                                        <Button
-                                          variant="outline-success"
-                                          size="sm"
-                                          onClick={() => downloadDocument(doc.document.base64Data, doc.document.fileName)}
-                                        >
-                                          <i className="fas fa-download me-1"></i>
-                                          Download Document
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </Card.Body>
-                              </Card>
-                            </Col>
-                          ))}
-                        </Row>
+                        <>
+                          <i className="fas fa-check-circle me-2"></i>
+                          Check Status & Create Data Path
+                        </>
                       )}
+                    </Button>
+                    <div className="mt-4 small text-muted">
+                      <p>After clicking, administrators will be able to:</p>
+                      <ul className="list-unstyled">
+                        <li><i className="fas fa-upload text-success me-2"></i>Upload your passport documents</li>
+                        <li><i className="fas fa-upload text-success me-2"></i>Add your visa information</li>
+                        <li><i className="fas fa-upload text-success me-2"></i>Update your application status</li>
+                      </ul>
                     </div>
-                  </Tab>
+                  </div>
+                ) : (
+                  // Show status information after data path is created
+                  <div className="py-4">
+                    <i className="fas fa-check-circle fa-4x text-success mb-4"></i>
+                    <h4 className="text-success">Data Path Created Successfully!</h4>
+                    <p className="text-muted mb-4">
+                      Your personal data space has been created. Administrators can now upload your documents.
+                      You will be notified when your documents are ready.
+                    </p>
+                    
+                    <div className="alert alert-info mx-auto" style={{maxWidth: '500px'}}>
+                      <i className="fas fa-info-circle me-2"></i>
+                      <strong>Current Status:</strong> {userDocument?.status ? getStatusBadge(userDocument.status) : "Pending"}
+                    </div>
 
-                  {/* ePassport Tab */}
-                  <Tab eventKey="passport" title={
-                    <span>
-                      <i className="fas fa-passport me-1"></i>
-                      ePassport
-                      {passportData && (
-                        <Badge bg="info" className="ms-1">1</Badge>
-                      )}
-                    </span>
-                  }>
-                    <div className="p-3">
-                      {!passportData ? (
-                        <div className="text-center py-5">
-                          <i className="fas fa-passport fa-4x text-muted mb-3"></i>
-                          <h4 className="text-muted">No ePassport Found</h4>
-                          <p className="text-muted">
-                            Your ePassport will appear here once it is uploaded by the administrator.
-                          </p>
-                          <Button variant="primary" onClick={fetchUserData}>
-                            <i className="fas fa-sync me-2"></i>
-                            Refresh
-                          </Button>
-                        </div>
-                      ) : (
-                        <Row>
-                          <Col lg={6} className="mb-4">
-                            <Card className="h-100 border-0 shadow-sm">
+                    {/* Document preview section when admin uploads data */}
+                    {userDocument?.documents?.passport?.base64Data && (
+                      <div className="mt-4">
+                        <h5>Your Documents</h5>
+                        <Row className="mt-3">
+                          <Col md={6}>
+                            <Card className="border-0 shadow-sm">
                               <Card.Header className="bg-light">
-                                <h6 className="mb-0">
-                                  <i className="fas fa-id-card me-2 text-primary"></i>
-                                  ePassport Information
-                                </h6>
+                                <h6 className="mb-0">Passport Document</h6>
                               </Card.Header>
                               <Card.Body>
-                                <div className="mb-4">
-                                  <Row>
-                                    <Col sm={6}>
-                                      <strong>Passport Number:</strong><br/>
-                                      <span className="fs-5 fw-bold text-primary">
-                                        {passportData.passportNumber}
-                                      </span>
-                                    </Col>
-                                    <Col sm={6}>
-                                      <strong>Nationality:</strong><br/>
-                                      {passportData.nationality}
-                                    </Col>
-                                  </Row>
-                                  <hr/>
-                                  <Row>
-                                    <Col sm={6}>
-                                      <strong>Given Name:</strong><br/>
-                                      {passportData.givenName}
-                                    </Col>
-                                    <Col sm={6}>
-                                      <strong>Surname:</strong><br/>
-                                      {passportData.surname}
-                                    </Col>
-                                  </Row>
-                                  <hr/>
-                                  <Row>
-                                    <Col sm={6}>
-                                      <strong>Date of Birth:</strong><br/>
-                                      {formatDate(passportData.dateOfBirth)}
-                                    </Col>
-                                    <Col sm={6}>
-                                      <strong>Gender:</strong><br/>
-                                      {passportData.gender}
-                                    </Col>
-                                  </Row>
-                                  <hr/>
-                                  <Row>
-                                    <Col sm={6}>
-                                      <strong>Issue Date:</strong><br/>
-                                      {formatDate(passportData.issueDate)}
-                                    </Col>
-                                    <Col sm={6}>
-                                      <strong>Expiry Date:</strong><br/>
-                                      {formatDate(passportData.expiryDate)}
-                                    </Col>
-                                  </Row>
-                                  {passportData.issuingAuthority && (
-                                    <>
-                                      <hr/>
-                                      <Row>
-                                        <Col sm={12}>
-                                          <strong>Issuing Authority:</strong><br/>
-                                          {passportData.issuingAuthority}
-                                        </Col>
-                                      </Row>
-                                    </>
+                                <Button
+                                  variant="outline-primary"
+                                  onClick={() => previewDocument(
+                                    userDocument.documents.passport, 
+                                    "Passport Document"
                                   )}
-                                </div>
-                              </Card.Body>
-                            </Card>
-                          </Col>
-
-                          <Col lg={6} className="mb-4">
-                            <Card className="h-100 border-0 shadow-sm">
-                              <Card.Header className="bg-light">
-                                <h6 className="mb-0">
-                                  <i className="fas fa-image me-2 text-primary"></i>
-                                  ePassport Document
-                                </h6>
-                              </Card.Header>
-                              <Card.Body>
-                                {passportData.document && passportData.document.base64Data ? (
-                                  <div className="text-center">
-                                    <div className="mb-3">
-                                      {passportData.document.fileType.startsWith('image/') ? (
-                                        <img
-                                          src={passportData.document.base64Data}
-                                          alt="ePassport"
-                                          className="img-fluid rounded shadow-sm"
-                                          style={{ maxHeight: '250px', cursor: 'pointer' }}
-                                          onClick={() => previewDocument(passportData.document.base64Data, "ePassport")}
-                                        />
-                                      ) : (
-                                        <div className="text-center py-4 border rounded">
-                                          <i className="fas fa-file-pdf fa-3x text-danger mb-3"></i>
-                                          <p className="mb-2">{passportData.document.fileName}</p>
-                                          <small className="text-muted">
-                                            PDF Document - {(passportData.document.fileSize / 1024 / 1024).toFixed(2)} MB
-                                          </small>
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="d-grid gap-2">
-                                      <Button
-                                        variant="outline-primary"
-                                        size="sm"
-                                        onClick={() => previewDocument(passportData.document.base64Data, "ePassport")}
-                                      >
-                                        <i className="fas fa-eye me-1"></i>
-                                        Preview ePassport
-                                      </Button>
-                                      <Button
-                                        variant="outline-success"
-                                        size="sm"
-                                        onClick={() => downloadDocument(passportData.document.base64Data, passportData.document.fileName)}
-                                      >
-                                        <i className="fas fa-download me-1"></i>
-                                        Download ePassport
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="text-center py-4">
-                                    <i className="fas fa-times-circle fa-3x text-muted mb-3"></i>
-                                    <p className="text-muted">ePassport document not available</p>
-                                  </div>
-                                )}
+                                >
+                                  <i className="fas fa-eye me-1"></i>
+                                  Preview Passport
+                                </Button>
                               </Card.Body>
                             </Card>
                           </Col>
                         </Row>
-                      )}
-                    </div>
-                  </Tab>
+                      </div>
+                    )}
 
-                  {/* Status Tab */}
-                  <Tab eventKey="status" title={
-                    <span>
-                      <i className="fas fa-info-circle me-1"></i>
-                      Application Status
-                    </span>
-                  }>
-                    <div className="p-3">
-                      <Row>
-                        <Col lg={6} className="mb-4">
-                          <Card className="border-0 shadow-sm">
-                            <Card.Header className="bg-info text-white">
-                              <h6 className="mb-0">
-                                <i className="fas fa-sync-alt me-2"></i>
-                                Current Status
-                              </h6>
-                            </Card.Header>
-                            <Card.Body>
-                              {userData?.australiaWorkPermitStatus ? (
-                                <div className="text-center">
-                                  <div className="mb-3">
-                                    {getStatusBadge(userData.australiaWorkPermitStatus)}
-                                  </div>
-                                  <p className="mb-2">
-                                    <strong>Last Updated:</strong><br/>
-                                    {userData.lastAustraliaSubmission ? 
-                                      formatDate(userData.lastAustraliaSubmission) : "N/A"
-                                    }
-                                  </p>
-                                  {userData.australiaPassportNumber && (
-                                    <p className="mb-0">
-                                      <strong>Passport Number:</strong><br/>
-                                      {userData.australiaPassportNumber}
-                                    </p>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="text-center py-3">
-                                  <i className="fas fa-clock fa-2x text-muted mb-2"></i>
-                                  <p className="text-muted mb-0">No Australia application found</p>
-                                </div>
-                              )}
-                            </Card.Body>
-                          </Card>
-                        </Col>
-
-                        <Col lg={6} className="mb-4">
-                          <Card className="border-0 shadow-sm">
-                            <Card.Header className="bg-warning">
-                              <h6 className="mb-0">
-                                <i className="fas fa-question-circle me-2"></i>
-                                Need Help?
-                              </h6>
-                            </Card.Header>
-                            <Card.Body>
-                              <p className="small text-muted">
-                                If you have any questions about your Australia visa or ePassport, 
-                                please contact our support team.
-                              </p>
-                              <ul className="small text-muted">
-                                <li>Ensure your documents are clear and readable</li>
-                                <li>Check expiry dates regularly</li>
-                                <li>Keep digital copies secure</li>
-                              </ul>
-                              <Button variant="outline-primary" size="sm" as={Link} to="/support" >
-                                <i className="fas fa-envelope me-1"></i>
-                                Contact Support
-                              </Button>
-                            </Card.Body>
-                          </Card>
-                        </Col>
-                      </Row>
-                    </div>
-                  </Tab>
-                </Tabs>
+                    <Button 
+                      variant="outline-secondary" 
+                      onClick={checkDataPathStatus}
+                      disabled={loading}
+                      className="mt-3"
+                    >
+                      <i className="fas fa-sync me-2"></i>
+                      Refresh Status
+                    </Button>
+                  </div>
+                )}
               </Card.Body>
             </Card>
 
@@ -532,25 +285,25 @@ function AustraliaVisaPassport() {
               <Card.Body className="p-4">
                 <h5 className="mb-3">
                   <i className="fas fa-info-circle me-2 text-primary"></i>
-                  About Australia Visa & ePassport
+                  How It Works
                 </h5>
                 <Row>
                   <Col md={6}>
-                    <h6>Visa Types</h6>
+                    <h6>For Users</h6>
                     <ul className="small text-muted">
-                      <li><strong>Visitor Visa:</strong> For tourism and short stays</li>
-                      <li><strong>Student Visa:</strong> For international students</li>
-                      <li><strong>Work Visa:</strong> For employment opportunities</li>
-                      <li><strong>Permanent Visa:</strong> For long-term residence</li>
+                      <li>Click "Check Status" to create your data space</li>
+                      <li>Button disappears after successful creation</li>
+                      <li>Wait for admin to upload your documents</li>
+                      <li>Return later to view your documents</li>
                     </ul>
                   </Col>
                   <Col md={6}>
-                    <h6>ePassport Features</h6>
+                    <h6>For Administrators</h6>
                     <ul className="small text-muted">
-                      <li>Biometric data storage</li>
-                      <li>Enhanced security features</li>
-                      <li>Electronic chip technology</li>
-                      <li>Faster border processing</li>
+                      <li>System creates blank data structure</li>
+                      <li>Upload documents as Base64 files</li>
+                      <li>Update application status</li>
+                      <li>Fill in passport and visa details</li>
                     </ul>
                   </Col>
                 </Row>
@@ -566,69 +319,16 @@ function AustraliaVisaPassport() {
           <Modal.Title>{previewTitle}</Modal.Title>
         </Modal.Header>
         <Modal.Body className="text-center">
-          <img
-            src={previewImage}
-            alt="Document preview"
-            className="img-fluid rounded shadow"
-            style={{ maxHeight: '70vh' }}
-          />
+          {previewImage && (
+            <img
+              src={previewImage}
+              alt="Document preview"
+              className="img-fluid rounded shadow"
+              style={{ maxHeight: '70vh' }}
+            />
+          )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button 
-            variant="success"
-            onClick={() => downloadDocument(previewImage, previewTitle)}
-          >
-            <i className="fas fa-download me-1"></i>
-            Download
-          </Button>
-          <Button variant="secondary" onClick={() => setShowPreview(false)}>
-            Close
-          </Button>
-        </Modal.Footer>
       </Modal>
-
-      <style jsx>{`
-        .australia-visa-page {
-          background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-          min-height: 100vh;
-        }
-        
-        .text-gradient {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-        
-        .document-icon {
-          animation: float 3s ease-in-out infinite;
-        }
-        
-        @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
-        
-        .card {
-          border-radius: 15px;
-        }
-        
-        .nav-tabs .nav-link {
-          border: none;
-          border-bottom: 3px solid transparent;
-          font-weight: 500;
-        }
-        
-        .nav-tabs .nav-link.active {
-          border-bottom: 3px solid #667eea;
-          background: transparent;
-          color: #667eea;
-        }
-        
-        .nav-tabs .nav-link:hover {
-          border-bottom: 3px solid #667eea;
-        }
-      `}</style>
     </div>
   );
 }
