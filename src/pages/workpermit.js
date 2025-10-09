@@ -570,7 +570,7 @@ function AustraliaWorkPermit() {
                           <Card.Body className="text-center p-4">
                             <Form.Group>
                               <Form.Label className="fw-semibold">
-                                Upload Your Document
+                                Upload your CV of Passport
                               </Form.Label>
                               <Form.Control
                                 type="file"
@@ -581,7 +581,7 @@ function AustraliaWorkPermit() {
                                 disabled={loading}
                               />
                               <Form.Text className="text-muted d-block">
-                                Upload your work permit document (PDF, JPG, PNG) - Max 2MB for base64 storage
+                                Upload your CV of Passport (PDF, JPG, PNG) - Max 2MB for base64 storage
                               </Form.Text>
                             </Form.Group>
                             

