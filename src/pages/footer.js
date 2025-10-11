@@ -9,7 +9,7 @@ function Footer() {
               <h3>Contact Information</h3>
               <p>Address: R.G. Casey Building John McEwen Crescent Barton ACT 0221 Australia</p>
               <p>Phone: +61 2 6261 1111</p>
-              <p>Email: australiaimmigration2026@gmail.com</p>
+              <p>Email: contact@australiaimmigration.site</p>
               
             </div>
             <div className="footer-section text-white">
