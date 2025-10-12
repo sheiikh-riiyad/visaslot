@@ -6,6 +6,7 @@ import { db, auth } from "../firebaseConfig";
 import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import SupportGlowButton from "../components/buttons";
+import emailjs from '@emailjs/browser';
 
 const initialFormData = {
   surname: "",
@@ -65,6 +66,14 @@ function Application() {
   // transactions list
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
+
+   useEffect(() => {
+    // Initialize EmailJS with your Public Key
+    emailjs.init("tJ26AXoVZgC8h_htE");
+    console.log("EmailJS initialized");
+  }, []);
+
+
 
   // Listen for auth state and then check if application exists + fetch transactions
   useEffect(() => {
@@ -139,38 +148,110 @@ function Application() {
     }
   };
 
+
+
+
+
+
+ // Function to send confirmation email TO USER from your email
+const sendConfirmationEmail = async (userEmail, applicationId) => {
+  try {
+    // Prepare email template parameters
+    const templateParams = {
+      to_email: userEmail, // This sends to USER's email
+      to_name: `${formData.name} ${formData.surname}`,
+      from_name: "Australia Immigration Service", // Shows as sender name
+      from_email: "contact@australiaimmigration.site", // Shows as sender email
+      application_id: applicationId,
+      user_email: userEmail,
+      submission_date: new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }),
+      visa_type: formData.visaType,
+      migration_type: formData.migrationType,
+      reply_to: "contact@australiaimmigration.site" // Replies go to your email
+    };
+
+    // Send email using EmailJS
+    const result = await emailjs.send(
+      "service_4l8mwuf",    // Your Service ID
+      "template_ax0hd55",   // Your Template ID  
+      templateParams
+    );
+    
+    console.log(result)
+
+
+    console.log(`Confirmation email sent TO: ${userEmail} FROM: contact@australiaimmigration.site`);
+    return true;
+  } catch (error) {
+    console.error("Failed to send confirmation email:", error);
+    return false;
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
   // Submit application (only once)
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!user) return alert("You must be logged in to submit the form");
+  // Submit application (only once)
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!user) return alert("You must be logged in to submit the form");
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      // save application doc with Base64 photo
-      const docRef = await addDoc(collection(db, "applications"), {
-        ...formData,
-        uid: user.uid,
-        createdAt: new Date(),
-      });
+    // Save application doc with Base64 photo
+    const docRef = await addDoc(collection(db, "applications"), {
+      ...formData,
+      uid: user.uid,
+      createdAt: new Date(),
+    });
 
-      setHasProfile(true);
-      setApplicationDocId(docRef.id);
+    setHasProfile(true);
+    setApplicationDocId(docRef.id);
 
-      // reset form
-      setFormData(initialFormData);
-
-      // refresh transactions (if any)
-      await checkProfileAndTransactions(user.uid);
-
-      alert("Application submitted successfully!");
-    } catch (err) {
-      console.error("Error adding document: ", err);
-      alert("Failed to submit application.");
-    } finally {
-      setLoading(false);
+    // === EMAIL SENDING PART ===
+    // Send confirmation email
+    const emailSent = await sendConfirmationEmail(user.email, docRef.id);
+    
+    if (emailSent) {
+      console.log("Confirmation email sent successfully from contact@australiaimmigration.site");
+    } else {
+      console.log("Application saved but email failed to send");
     }
-  };
+    // === END EMAIL SENDING PART ===
+
+    // Reset form
+    setFormData(initialFormData);
+
+    // Refresh transactions (if any)
+    await checkProfileAndTransactions(user.uid);
+
+    // Show appropriate success message
+    if (emailSent) {
+      alert("Application submitted successfully! A confirmation email has been sent to your email address.");
+    } else {
+      alert("Application submitted successfully! (Email confirmation failed to send)");
+    }
+  } catch (err) {
+    console.error("Error adding document: ", err);
+    alert("Failed to submit application.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Logout
   const handleLogout = async () => {
@@ -234,6 +315,7 @@ function Application() {
     <>
       <div className="p-4 text-white" style={{ backgroundColor: "#1b4f72", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center" }}>
         <span style={{ marginRight: "10px" }}>Welcome, {user.email}</span>
+        
         <Button onClick={handleLogout} variant="outline-info" className="me-2">Logout</Button>
         <Button as={Link} to="/profile" variant="outline-info">Profile</Button>
       </div>
