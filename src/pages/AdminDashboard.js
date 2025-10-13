@@ -1,6 +1,6 @@
 // src/pages/AdminDashboard.js
-import { useEffect, useState } from 'react';
-import { collection, getDocs, doc, updateDoc, query, orderBy,  } from 'firebase/firestore';
+import { useEffect, useState, useCallback } from 'react';
+import { collection, getDocs, doc, updateDoc, query, orderBy, } from 'firebase/firestore';
 import { db, auth, ADMIN_EMAILS } from '../firebaseConfig';
 import { 
   Container, 
@@ -12,7 +12,7 @@ import {
   Badge, 
   Form, 
   Modal,
- 
+  
 } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 
@@ -31,23 +31,17 @@ function AdminDashboard() {
   });
   const navigate = useNavigate();
 
-  // Check if user is admin
-  useEffect(() => {
-    const checkAdmin = () => {
-      const user = auth.currentUser;
-      if (!user || !ADMIN_EMAILS.includes(user.email)) {
-        navigate('/admin/login');
-        return false;
-      }
-      return true;
+  const calculateStats = useCallback((apps) => {
+    const stats = {
+      total: apps.length,
+      pending: apps.filter(app => !app.applicationStatus || app.applicationStatus === 'Under Review').length,
+      approved: apps.filter(app => app.applicationStatus === 'approved').length,
+      rejected: apps.filter(app => app.applicationStatus === 'rejected').length
     };
+    setStats(stats);
+  }, []);
 
-    if (!checkAdmin()) return;
-
-    fetchData();
-  }, [navigate]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -82,17 +76,23 @@ function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [calculateStats]);
 
-  const calculateStats = (apps) => {
-    const stats = {
-      total: apps.length,
-      pending: apps.filter(app => !app.applicationStatus || app.applicationStatus === 'Under Review').length,
-      approved: apps.filter(app => app.applicationStatus === 'approved').length,
-      rejected: apps.filter(app => app.applicationStatus === 'rejected').length
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdmin = () => {
+      const user = auth.currentUser;
+      if (!user || !ADMIN_EMAILS.includes(user.email)) {
+        navigate('/admin/login');
+        return false;
+      }
+      return true;
     };
-    setStats(stats);
-  };
+
+    if (!checkAdmin()) return;
+
+    fetchData();
+  }, [navigate, fetchData]);
 
   const updateApplicationStatus = async (applicationId, newStatus) => {
     try {
