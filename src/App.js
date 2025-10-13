@@ -23,6 +23,8 @@ import LMIASubmission from './pages/LMIAsubmitting';
 import AustraliaWorkPermit from './pages/workpermit';
 import ManpowerService from './pages/manpower';
 import AustraliaVisaPassport from './pages/ausvisa';
+import AdminLogin from './pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
 
 function App() {
   return (
@@ -73,6 +75,9 @@ function App() {
         <Route path="/work-permit" element={<AustraliaWorkPermit/>} />
         <Route path="/manpower" element={<ManpowerService/>} />
         <Route path="/passport-visa" element={<AustraliaVisaPassport/>} />
+        <Route path="/admin-login" element={<AdminLogin/>} />
+        <Route path="/dashboard" element={<AdminDashboard/>} />
+
 
         
       </Routes>

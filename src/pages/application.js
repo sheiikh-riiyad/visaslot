@@ -1,12 +1,14 @@
 // src/pages/application.js
 import { useState, useEffect } from "react";
 import { Row, Col, Form, Button, Container } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { db, auth } from "../firebaseConfig";
 import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import SupportGlowButton from "../components/buttons";
 import emailjs from '@emailjs/browser';
+
+
 
 const initialFormData = {
   surname: "",
@@ -58,6 +60,10 @@ const initialFormData = {
 function Application() {
   const [formData, setFormData] = useState(initialFormData);
   const [user, setUser] = useState(null);
+
+  const navigate = useNavigate()
+
+  
 
   // whether user already submitted an application doc
   const [hasProfile, setHasProfile] = useState(false);
@@ -305,6 +311,10 @@ const handleSubmit = async (e) => {
         <Button style={{marginBottom: "5px"}} as={Link} to="/authorize" variant="primary">
           Login
         </Button>
+
+
+      <button onClick={()=> navigate("/admin-login")} >  Admin Login   </button>
+
         <br/>
         <SupportGlowButton/>
       </div>
