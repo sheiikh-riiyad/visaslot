@@ -47,12 +47,8 @@ function AdminApplications() {
       const applicationRef = doc(db, "applications", applicationId);
       
       await updateDoc(applicationRef, {
-        status: newStatus,
-        updatedAt: new Date(),
-        adminAction: {
-          action: newStatus,
-          timestamp: new Date()
-        }
+        applicationStatus: newStatus,
+        updatedAt: new Date()
       });
 
       // Update local state
@@ -60,12 +56,8 @@ function AdminApplications() {
         app.id === applicationId 
           ? { 
               ...app, 
-              status: newStatus, 
-              updatedAt: new Date(),
-              adminAction: {
-                action: newStatus,
-                timestamp: new Date()
-              }
+              applicationStatus: newStatus, 
+              updatedAt: new Date()
             }
           : app
       ));
@@ -106,9 +98,9 @@ function AdminApplications() {
 
   const filteredApplications = statusFilter === "all" 
     ? applications 
-    : applications.filter(app => app.status === statusFilter);
+    : applications.filter(app => app.applicationStatus === statusFilter);
 
-  const pendingCount = applications.filter(app => !app.status || app.status === "pending").length;
+  const pendingCount = applications.filter(app => !app.applicationStatus || app.applicationStatus === "pending").length;
 
   if (loading) {
     return (
@@ -188,8 +180,8 @@ function AdminApplications() {
                       <td>{application.visaType}</td>
                       <td>{application.migrationType}</td>
                       <td>
-                        <Badge bg={getStatusVariant(application.status)}>
-                          {application.status || "pending"}
+                        <Badge bg={getStatusVariant(application.applicationStatus)}>
+                          {application.applicationStatus || "pending"}
                         </Badge>
                       </td>
                       <td>
@@ -208,7 +200,7 @@ function AdminApplications() {
                           >
                             <i className="fas fa-eye"></i>
                           </Button>
-                          {(!application.status || application.status === "pending") && (
+                          {(!application.applicationStatus || application.applicationStatus === "pending") && (
                             <>
                               <Button
                                 variant="outline-success"
@@ -302,7 +294,7 @@ function AdminApplications() {
                   <h6 className="text-primary border-bottom pb-2">Application Management</h6>
                   <div className="d-flex gap-2 flex-wrap">
                     <Button
-                      variant={(!selectedApplication.status || selectedApplication.status === "pending") ? "warning" : "outline-warning"}
+                      variant={(!selectedApplication.applicationStatus || selectedApplication.applicationStatus === "pending") ? "warning" : "outline-warning"}
                       size="sm"
                       onClick={() => handleStatusUpdate(selectedApplication.id, "pending")}
                       disabled={actionLoading}
@@ -311,7 +303,7 @@ function AdminApplications() {
                       Mark as Pending
                     </Button>
                     <Button
-                      variant={selectedApplication.status === "approved" ? "success" : "outline-success"}
+                      variant={selectedApplication.applicationStatus === "approved" ? "success" : "outline-success"}
                       size="sm"
                       onClick={() => handleStatusUpdate(selectedApplication.id, "approved")}
                       disabled={actionLoading}
@@ -320,7 +312,7 @@ function AdminApplications() {
                       Approve
                     </Button>
                     <Button
-                      variant={selectedApplication.status === "rejected" ? "danger" : "outline-danger"}
+                      variant={selectedApplication.applicationStatus === "rejected" ? "danger" : "outline-danger"}
                       size="sm"
                       onClick={() => handleStatusUpdate(selectedApplication.id, "rejected")}
                       disabled={actionLoading}
@@ -329,7 +321,7 @@ function AdminApplications() {
                       Reject
                     </Button>
                     <Button
-                      variant={selectedApplication.status === "under_review" ? "info" : "outline-info"}
+                      variant={selectedApplication.applicationStatus === "under_review" ? "info" : "outline-info"}
                       size="sm"
                       onClick={() => handleStatusUpdate(selectedApplication.id, "under_review")}
                       disabled={actionLoading}
