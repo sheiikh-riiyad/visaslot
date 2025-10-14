@@ -129,7 +129,7 @@ function AdminLogin() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    placeholder="contact@australiaimmigration.site"
+                    placeholder="Admin Email"
                     required
                     className="py-3"
                     disabled={loading}
