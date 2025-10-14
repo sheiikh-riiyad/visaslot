@@ -13,7 +13,7 @@ import Application from './pages/application';
 import Profile from './pages/profile';
 import Login from './pages/login';
 import Register from './pages/register';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, } from 'react-router-dom';
 import Jobdetails from './pages/jobdetails';
 import { AuthProvider } from './contexts/AuthContext';
 import UserSupport from './pages/userSupport';
@@ -23,8 +23,11 @@ import LMIASubmission from './pages/LMIAsubmitting';
 import AustraliaWorkPermit from './pages/workpermit';
 import ManpowerService from './pages/manpower';
 import AustraliaVisaPassport from './pages/ausvisa';
-import AdminLogin from './pages/AdminLogin';
-import AdminDashboard from './pages/AdminDashboard';
+import AdminLogin from './admin/AdminLogin';
+import AdminDashboard from './admin/AdminDashboard';
+import { Navigate } from 'react-router-dom';
+
+
 
 function App() {
   return (
@@ -75,9 +78,15 @@ function App() {
         <Route path="/work-permit" element={<AustraliaWorkPermit/>} />
         <Route path="/manpower" element={<ManpowerService/>} />
         <Route path="/passport-visa" element={<AustraliaVisaPassport/>} />
-        <Route path="/admin-login" element={<AdminLogin/>} />
-        <Route path="/dashboard" element={<AdminDashboard/>} />
+        
 
+         {/* Admin Routes */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        
+        {/* Redirects */}
+        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+          
 
         
       </Routes>

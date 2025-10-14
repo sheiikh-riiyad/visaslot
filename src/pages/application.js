@@ -313,7 +313,7 @@ const handleSubmit = async (e) => {
         </Button>
 
 
-      <button onClick={()=> navigate("/admin-login")} >  Admin Login   </button>
+      <button onClick={()=> navigate("/adminlogin")} >  Admin Login   </button>
 
         <br/>
         <SupportGlowButton/>
