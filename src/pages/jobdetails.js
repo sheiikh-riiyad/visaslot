@@ -240,14 +240,14 @@ function Jobdetails() {
     }
   };
 
-  const downloadConfirmationFile = () => {
-    if (existingApplication?.confirmation) {
-      const link = document.createElement('a');
-      link.href = existingApplication.confirmation;
-      link.download = existingApplication.confirmationFileName || 'confirmation_file';
-      link.click();
-    }
-  };
+  // const downloadConfirmationFile = () => {
+  //   if (existingApplication?.confirmation) {
+  //     const link = document.createElement('a');
+  //     link.href = existingApplication.confirmation;
+  //     link.download = existingApplication.confirmationFileName || 'confirmation_file';
+  //     link.click();
+  //   }
+  // };
 
   const getStatusVariant = (status) => {
     switch (status?.toLowerCase()) {
@@ -406,7 +406,7 @@ function Jobdetails() {
                                 View Confirmation
                               </Button>
                               <small className="text-muted">
-                                {existingApplication.confirmationFileName}
+                                
                               </small>
                             </div>
                           )}
@@ -472,14 +472,14 @@ function Jobdetails() {
                     </Row>
 
                     <div className="d-flex justify-content-center gap-3">
-                      <Button
+                      {/* <Button
                         variant="success"
                         onClick={downloadConfirmationFile}
                         className="px-4"
                       >
                         <i className="fas fa-download me-2"></i>
                         Download Confirmation
-                      </Button>
+                      </Button> */}
                       <Button
                         variant="outline-secondary"
                         onClick={() => setShowConfirmationModal(false)}
