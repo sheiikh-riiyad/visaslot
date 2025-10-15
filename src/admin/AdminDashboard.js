@@ -2,10 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Container, Row, Col, Card, Button, Nav, Badge, Alert, Spinner } from "react-bootstrap";
 import { db, auth, ADMIN_EMAILS } from "../firebaseConfig";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, getDocs, } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import AdminApplications from "./AdminApplications";
 import AdminPayments from "./AdminPayments";
+import AdminJobApplications from "./AdminJobApplications";
 
 function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -16,7 +17,9 @@ function AdminDashboard() {
     totalApplications: 0,
     pendingApplications: 0,
     totalPayments: 0,
-    pendingPayments: 0
+    pendingPayments: 0,
+    totalJobdetails: 0,
+    pendingJobdetails: 0,
   });
   const navigate = useNavigate();
 
@@ -38,12 +41,12 @@ function AdminDashboard() {
     try {
       setLoading(true);
       
-      // Count applications
+      // Count visa applications
       const appsRef = collection(db, "applications");
       const appsSnapshot = await getDocs(appsRef);
       const totalApps = appsSnapshot.size;
       const pendingApps = appsSnapshot.docs.filter(doc => 
-        doc.data().status === "pending" || !doc.data().status
+        !doc.data().status || doc.data().status === "pending"
       ).length;
 
       // Count payments
@@ -54,11 +57,85 @@ function AdminDashboard() {
         doc.data().paymentStatus === "pending"
       ).length;
 
+      // Count job applications - Try multiple approaches
+      let totalJobs = 0;
+      let pendingJobs = 0;
+      
+      try {
+        // Approach 1: Try to get from jobdetails collection
+        const jobDetailsRef = collection(db, "jobdetails");
+        const jobDetailsSnapshot = await getDocs(jobDetailsRef);
+        
+        console.log("Found jobdetails documents:", jobDetailsSnapshot.size);
+        
+        for (const userDoc of jobDetailsSnapshot.docs) {
+          const userId = userDoc.id;
+          console.log("Checking user:", userId);
+          
+          try {
+            const applicationsRef = collection(db, `jobdetails/${userId}/applications`);
+            const applicationsSnapshot = await getDocs(applicationsRef);
+            console.log(`Found ${applicationsSnapshot.size} applications for user ${userId}`);
+            
+            totalJobs += applicationsSnapshot.size;
+            pendingJobs += applicationsSnapshot.docs.filter(doc => 
+              !doc.data().status || doc.data().status === "pending"
+            ).length;
+          } catch (error) {
+            console.log(`No applications subcollection for user ${userId}:`, error.message);
+          }
+        }
+        
+        // If no job applications found, try alternative approach
+        if (totalJobs === 0) {
+          console.log("No job applications found in jobdetails, trying alternative approach...");
+          
+          // Alternative: Check if job applications are stored elsewhere
+          // This is a fallback approach
+          try {
+            const allCollections = await getDocs(collection(db, ""));
+            console.log("All root collections:", allCollections);
+          } catch (error) {
+            console.log("Cannot list root collections:", error);
+          }
+        }
+        
+      } catch (error) {
+        console.log("Error counting job applications:", error);
+        
+        // Fallback: Try to get from users collection
+        try {
+          console.log("Trying fallback approach with users collection...");
+          const usersRef = collection(db, "users");
+          const usersSnapshot = await getDocs(usersRef);
+          
+          for (const userDoc of usersSnapshot.docs) {
+            const userId = userDoc.id;
+            try {
+              const jobAppsRef = collection(db, `users/${userId}/jobdetails`);
+              const jobAppsSnapshot = await getDocs(jobAppsRef);
+              totalJobs += jobAppsSnapshot.size;
+              pendingJobs += jobAppsSnapshot.docs.filter(doc => 
+                !doc.data().status || doc.data().status === "pending"
+              ).length;
+            } catch (error) {
+              // Skip if no jobdetails for this user
+            }
+          }
+        } catch (fallbackError) {
+          console.log("Fallback approach also failed:", fallbackError);
+        }
+      }
+
+      console.log("Final job stats - Total:", totalJobs, "Pending:", pendingJobs);
+
       setStats({
         totalApplications: totalApps,
         pendingApplications: pendingApps,
         totalPayments: totalPays,
-        pendingPayments: pendingPays
+        pendingPayments: pendingPays,
+        totalJobdetails: totalJobs,
+        pendingJobdetails: pendingJobs,
       });
       
     } catch (error) {
@@ -130,6 +207,7 @@ function AdminDashboard() {
                     )}
                   </Nav.Link>
                 </Nav.Item>
+
                 <Nav.Item>
                   <Nav.Link 
                     active={activeTab === "payments"} 
@@ -141,6 +219,22 @@ function AdminDashboard() {
                     {stats.pendingPayments > 0 && (
                       <Badge bg="warning" className="ms-auto">
                         {stats.pendingPayments}
+                      </Badge>
+                    )}
+                  </Nav.Link>
+                </Nav.Item>
+
+                <Nav.Item>
+                  <Nav.Link 
+                    active={activeTab === "jobdetails"} 
+                    onClick={() => setActiveTab("jobdetails")}
+                    className="rounded-0 d-flex align-items-center"
+                  >
+                    <i className="fas fa-briefcase me-2"></i>
+                    Job Applications
+                    {stats.pendingJobdetails > 0 && (
+                      <Badge bg="info" className="ms-auto">
+                        {stats.pendingJobdetails}
                       </Badge>
                     )}
                   </Nav.Link>
@@ -209,7 +303,7 @@ function AdminDashboard() {
                     <i className="fas fa-file-alt fa-lg text-primary"></i>
                   </div>
                   <h3 className="text-primary fw-bold">{stats.totalApplications}</h3>
-                  <h6 className="text-muted mb-0">Total Applications</h6>
+                  <h6 className="text-muted mb-0">Visa Applications</h6>
                   {stats.pendingApplications > 0 && (
                     <Badge bg="warning" className="mt-2">
                       {stats.pendingApplications} Pending
@@ -242,12 +336,15 @@ function AdminDashboard() {
                 <Card.Body className="text-center">
                   <div className="bg-info bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
                        style={{ width: '60px', height: '60px' }}>
-                    <i className="fas fa-users fa-lg text-info"></i>
+                    <i className="fas fa-briefcase fa-lg text-info"></i>
                   </div>
-                  <h3 className="text-info fw-bold">
-                    {new Set().size}
-                  </h3>
-                  <h6 className="text-muted mb-0">Unique Users</h6>
+                  <h3 className="text-info fw-bold">{stats.totalJobdetails}</h3>
+                  <h6 className="text-muted mb-0">Job Applications</h6>
+                  {stats.pendingJobdetails > 0 && (
+                    <Badge bg="warning" className="mt-2">
+                      {stats.pendingJobdetails} Pending
+                    </Badge>
+                  )}
                 </Card.Body>
               </Card>
             </Col>
@@ -268,9 +365,26 @@ function AdminDashboard() {
             </Col>
           </Row>
 
+          {/* Debug Info - Remove this after testing */}
+          <Row className="mb-3">
+            <Col>
+              <Card className="border-warning">
+                <Card.Header className="bg-warning text-dark">
+                  <small>Debug Info (Remove in production)</small>
+                </Card.Header>
+                <Card.Body>
+                  <pre className="mb-0">
+                    {JSON.stringify(stats, null, 2)}
+                  </pre>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+
           {/* Tab Content */}
           {activeTab === "applications" && <AdminApplications />}
           {activeTab === "payments" && <AdminPayments />}
+          {activeTab === "jobdetails" && <AdminJobApplications />}
         </Col>
       </Row>
     </Container>

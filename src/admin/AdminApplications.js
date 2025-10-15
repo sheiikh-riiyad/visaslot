@@ -111,6 +111,19 @@ function AdminApplications() {
     );
   }
 
+  // Add this function inside your component
+const convertToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+};
+
+
+
+
   return (
     <div>
       <Card className="shadow-sm">
@@ -235,126 +248,274 @@ function AdminApplications() {
 
       {/* Application Details Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton className="bg-primary text-white">
-          <Modal.Title>
-            <i className="fas fa-file-alt me-2"></i>
-            Application Details - {selectedApplication?.name} {selectedApplication?.surname}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedApplication && (
-            <>
-              <Row className="mb-4">
-                <Col md={6}>
-                  <h6 className="text-primary border-bottom pb-2">Personal Information</h6>
-                  <p><strong>Full Name:</strong> {selectedApplication.name} {selectedApplication.surname}</p>
-                  <p><strong>Previous Name:</strong> {selectedApplication.previousName || "N/A"}</p>
-                  <p><strong>Gender:</strong> {selectedApplication.sex}</p>
-                  <p><strong>Marital Status:</strong> {selectedApplication.maritalStatus}</p>
-                  <p><strong>Date of Birth:</strong> {selectedApplication.dob}</p>
-                  <p><strong>Religion:</strong> {selectedApplication.religion}</p>
-                  <p><strong>Birth City:</strong> {selectedApplication.birthCity}</p>
-                  <p><strong>Birth Country:</strong> {selectedApplication.birthCountry}</p>
-                  <p><strong>National ID:</strong> {selectedApplication.nationalId}</p>
-                </Col>
-                <Col md={6}>
-                  <h6 className="text-primary border-bottom pb-2">Passport & Contact</h6>
-                  <p><strong>Passport No:</strong> {selectedApplication.passportNo}</p>
-                  <p><strong>Passport Issue:</strong> {selectedApplication.passportIssueDate}</p>
-                  <p><strong>Passport Expiry:</strong> {selectedApplication.passportExpiry}</p>
-                  <p><strong>Passport Place:</strong> {selectedApplication.passportPlace}</p>
-                  <p><strong>Email:</strong> {selectedApplication.email}</p>
-                  <p><strong>Phone:</strong> {selectedApplication.phone}</p>
-                  <p><strong>Mobile:</strong> {selectedApplication.mobile}</p>
-                  <p><strong>Address:</strong> {selectedApplication.contactAddress}</p>
-                </Col>
-              </Row>
+  <Modal.Header closeButton className="bg-primary text-white">
+    <Modal.Title>
+      <i className="fas fa-file-alt me-2"></i>
+      Application Details - {selectedApplication?.name} {selectedApplication?.surname}
+    </Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    {selectedApplication && (
+      <>
+        <Row className="mb-4">
+          <Col md={6}>
+            <h6 className="text-primary border-bottom pb-2">Personal Information</h6>
+            <p><strong>Full Name:</strong> {selectedApplication.name} {selectedApplication.surname}</p>
+            <p><strong>Previous Name:</strong> {selectedApplication.previousName || "N/A"}</p>
+            <p><strong>Gender:</strong> {selectedApplication.sex}</p>
+            <p><strong>Marital Status:</strong> {selectedApplication.maritalStatus}</p>
+            <p><strong>Date of Birth:</strong> {selectedApplication.dob}</p>
+            <p><strong>Religion:</strong> {selectedApplication.religion}</p>
+            <p><strong>Birth City:</strong> {selectedApplication.birthCity}</p>
+            <p><strong>Birth Country:</strong> {selectedApplication.birthCountry}</p>
+            <p><strong>National ID:</strong> {selectedApplication.nationalId}</p>
+          </Col>
+          <Col md={6}>
+            <h6 className="text-primary border-bottom pb-2">Passport & Contact</h6>
+            <p><strong>Passport No:</strong> {selectedApplication.passportNo}</p>
+            <p><strong>Passport Issue:</strong> {selectedApplication.passportIssueDate}</p>
+            <p><strong>Passport Expiry:</strong> {selectedApplication.passportExpiry}</p>
+            <p><strong>Passport Place:</strong> {selectedApplication.passportPlace}</p>
+            <p><strong>Email:</strong> {selectedApplication.email}</p>
+            <p><strong>Phone:</strong> {selectedApplication.phone}</p>
+            <p><strong>Mobile:</strong> {selectedApplication.mobile}</p>
+            <p><strong>Address:</strong> {selectedApplication.contactAddress}</p>
+          </Col>
+        </Row>
 
-              <Row className="mb-4">
-                <Col md={6}>
-                  <h6 className="text-primary border-bottom pb-2">Visa Information</h6>
-                  <p><strong>Visa Type:</strong> {selectedApplication.visaType}</p>
-                  <p><strong>Entries:</strong> {selectedApplication.entries}</p>
-                  <p><strong>Visa Period:</strong> {selectedApplication.visaPeriod}</p>
-                  <p><strong>Journey Date:</strong> {selectedApplication.journeyDate}</p>
-                  <p><strong>Migration Type:</strong> {selectedApplication.migrationType}</p>
-                  <p><strong>Sponsor:</strong> {selectedApplication.sponsor}</p>
-                </Col>
-                <Col md={6}>
-                  <h6 className="text-primary border-bottom pb-2">Family Information</h6>
-                  <p><strong>Father's Name:</strong> {selectedApplication.fatherName}</p>
-                  <p><strong>Father's Nationality:</strong> {selectedApplication.fatherNationality}</p>
-                  <p><strong>Mother's Name:</strong> {selectedApplication.motherName}</p>
-                  <p><strong>Mother's Nationality:</strong> {selectedApplication.motherNationality}</p>
-                </Col>
-              </Row>
+        <Row className="mb-4">
+          <Col md={6}>
+            <h6 className="text-primary border-bottom pb-2">Visa Information</h6>
+            <p><strong>Visa Type:</strong> {selectedApplication.visaType}</p>
+            <p><strong>Entries:</strong> {selectedApplication.entries}</p>
+            <p><strong>Visa Period:</strong> {selectedApplication.visaPeriod}</p>
+            <p><strong>Journey Date:</strong> {selectedApplication.journeyDate}</p>
+            <p><strong>Migration Type:</strong> {selectedApplication.migrationType}</p>
+            <p><strong>Sponsor:</strong> {selectedApplication.sponsor}</p>
+          </Col>
+          <Col md={6}>
+            <h6 className="text-primary border-bottom pb-2">Family Information</h6>
+            <p><strong>Father's Name:</strong> {selectedApplication.fatherName}</p>
+            <p><strong>Father's Nationality:</strong> {selectedApplication.fatherNationality}</p>
+            <p><strong>Mother's Name:</strong> {selectedApplication.motherName}</p>
+            <p><strong>Mother's Nationality:</strong> {selectedApplication.motherNationality}</p>
+          </Col>
+        </Row>
 
-              <Row>
-                <Col md={12}>
-                  <h6 className="text-primary border-bottom pb-2">Application Management</h6>
-                  <div className="d-flex gap-2 flex-wrap">
+        {/* Application Letter Upload Section */}
+        <Row className="mb-4">
+          <Col md={12}>
+            <h6 className="text-primary border-bottom pb-2">Application Letter</h6>
+            <Form.Group>
+              <Form.Label>
+                <strong>Upload Application Letter (Image/PDF)</strong>
+              </Form.Label>
+              <Form.Control
+                type="file"
+                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    try {
+                      setActionLoading(true);
+                      // Convert file to base64
+                      const base64 = await convertToBase64(file);
+                      
+                      // Update Firestore with the base64 file
+                      const applicationRef = doc(db, "applications", selectedApplication.id);
+                      await updateDoc(applicationRef, {
+                        applicationLetter: base64,
+                        applicationLetterName: file.name,
+                        applicationLetterType: file.type,
+                        applicationLetterUploadedAt: new Date().toISOString()
+                      });
+
+                      // Update local state
+                      setSelectedApplication(prev => ({
+                        ...prev,
+                        applicationLetter: base64,
+                        applicationLetterName: file.name,
+                        applicationLetterType: file.type,
+                        applicationLetterUploadedAt: new Date().toISOString()
+                      }));
+
+                      setApplications(prev => prev.map(app => 
+                        app.id === selectedApplication.id 
+                          ? { 
+                              ...app, 
+                              applicationLetter: base64,
+                              applicationLetterName: file.name,
+                              applicationLetterType: file.type,
+                              applicationLetterUploadedAt: new Date().toISOString()
+                            }
+                          : app
+                      ));
+
+                      alert("Application letter uploaded successfully!");
+                    } catch (error) {
+                      console.error("Error uploading file:", error);
+                      alert("Error uploading file: " + error.message);
+                    } finally {
+                      setActionLoading(false);
+                    }
+                  }
+                }}
+                disabled={actionLoading}
+              />
+              <Form.Text className="text-muted">
+                Supported formats: JPG, PNG, PDF, DOC, DOCX (Max 10MB)
+              </Form.Text>
+            </Form.Group>
+
+            {/* Display uploaded file info */}
+            {selectedApplication.applicationLetter && (
+              <div className="mt-2 p-3 border rounded bg-light">
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>Uploaded File:</strong> {selectedApplication.applicationLetterName}
+                    <br />
+                    <small className="text-muted">
+                      Uploaded: {formatDate(selectedApplication.applicationLetterUploadedAt)}
+                    </small>
+                  </div>
+                  <div>
                     <Button
-                      variant={(!selectedApplication.applicationStatus || selectedApplication.applicationStatus === "pending") ? "warning" : "outline-warning"}
+                      variant="outline-primary"
                       size="sm"
-                      onClick={() => handleStatusUpdate(selectedApplication.id, "pending")}
-                      disabled={actionLoading}
+                      onClick={() => {
+                        // Create a download link for the file
+                        const link = document.createElement('a');
+                        link.href = selectedApplication.applicationLetter;
+                        link.download = selectedApplication.applicationLetterName;
+                        link.click();
+                      }}
                     >
-                      <i className="fas fa-clock me-1"></i>
-                      Mark as Pending
+                      <i className="fas fa-download me-1"></i>
+                      Download
                     </Button>
                     <Button
-                      variant={selectedApplication.applicationStatus === "approved" ? "success" : "outline-success"}
+                      variant="outline-danger"
                       size="sm"
-                      onClick={() => handleStatusUpdate(selectedApplication.id, "approved")}
+                      className="ms-2"
+                      onClick={async () => {
+                        try {
+                          setActionLoading(true);
+                          // Remove file from Firestore
+                          const applicationRef = doc(db, "applications", selectedApplication.id);
+                          await updateDoc(applicationRef, {
+                            applicationLetter: null,
+                            applicationLetterName: null,
+                            applicationLetterType: null,
+                            applicationLetterUploadedAt: null
+                          });
+
+                          // Update local state
+                          setSelectedApplication(prev => ({
+                            ...prev,
+                            applicationLetter: null,
+                            applicationLetterName: null,
+                            applicationLetterType: null,
+                            applicationLetterUploadedAt: null
+                          }));
+
+                          setApplications(prev => prev.map(app => 
+                            app.id === selectedApplication.id 
+                              ? { 
+                                  ...app, 
+                                  applicationLetter: null,
+                                  applicationLetterName: null,
+                                  applicationLetterType: null,
+                                  applicationLetterUploadedAt: null
+                                }
+                              : app
+                          ));
+
+                          alert("Application letter removed successfully!");
+                        } catch (error) {
+                          console.error("Error removing file:", error);
+                          alert("Error removing file: " + error.message);
+                        } finally {
+                          setActionLoading(false);
+                        }
+                      }}
                       disabled={actionLoading}
                     >
-                      <i className="fas fa-check me-1"></i>
-                      Approve
-                    </Button>
-                    <Button
-                      variant={selectedApplication.applicationStatus === "rejected" ? "danger" : "outline-danger"}
-                      size="sm"
-                      onClick={() => handleStatusUpdate(selectedApplication.id, "rejected")}
-                      disabled={actionLoading}
-                    >
-                      <i className="fas fa-times me-1"></i>
-                      Reject
-                    </Button>
-                    <Button
-                      variant={selectedApplication.applicationStatus === "under_review" ? "info" : "outline-info"}
-                      size="sm"
-                      onClick={() => handleStatusUpdate(selectedApplication.id, "under_review")}
-                      disabled={actionLoading}
-                    >
-                      <i className="fas fa-search me-1"></i>
-                      Under Review
+                      <i className="fas fa-trash me-1"></i>
+                      Remove
                     </Button>
                   </div>
-                  
-                  <div className="mt-3">
-                    <p className="text-muted mb-1">
-                      <strong>Application ID:</strong> <code>{selectedApplication.id}</code>
-                    </p>
-                    <p className="text-muted mb-1">
-                      <strong>Created:</strong> {formatDate(selectedApplication.createdAt)}
-                    </p>
-                    {selectedApplication.updatedAt && (
-                      <p className="text-muted mb-0">
-                        <strong>Last Updated:</strong> {formatDate(selectedApplication.updatedAt)}
-                      </p>
-                    )}
-                  </div>
-                </Col>
-              </Row>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
+                </div>
+              </div>
+            )}
+          </Col>
+        </Row>
+
+        <Row>
+          <Col md={12}>
+            <h6 className="text-primary border-bottom pb-2">Application Management</h6>
+            <div className="d-flex gap-2 flex-wrap">
+              <Button
+                variant={(!selectedApplication.applicationStatus || selectedApplication.applicationStatus === "pending") ? "warning" : "outline-warning"}
+                size="sm"
+                onClick={() => handleStatusUpdate(selectedApplication.id, "pending")}
+                disabled={actionLoading}
+              >
+                <i className="fas fa-clock me-1"></i>
+                Mark as Pending
+              </Button>
+              <Button
+                variant={selectedApplication.applicationStatus === "approved" ? "success" : "outline-success"}
+                size="sm"
+                onClick={() => handleStatusUpdate(selectedApplication.id, "approved")}
+                disabled={actionLoading}
+              >
+                <i className="fas fa-check me-1"></i>
+                Approve
+              </Button>
+              <Button
+                variant={selectedApplication.applicationStatus === "rejected" ? "danger" : "outline-danger"}
+                size="sm"
+                onClick={() => handleStatusUpdate(selectedApplication.id, "rejected")}
+                disabled={actionLoading}
+              >
+                <i className="fas fa-times me-1"></i>
+                Reject
+              </Button>
+              <Button
+                variant={selectedApplication.applicationStatus === "under_review" ? "info" : "outline-info"}
+                size="sm"
+                onClick={() => handleStatusUpdate(selectedApplication.id, "under_review")}
+                disabled={actionLoading}
+              >
+                <i className="fas fa-search me-1"></i>
+                Under Review
+              </Button>
+            </div>
+            
+            <div className="mt-3">
+              <p className="text-muted mb-1">
+                <strong>Application ID:</strong> <code>{selectedApplication.id}</code>
+              </p>
+              <p className="text-muted mb-1">
+                <strong>Created:</strong> {formatDate(selectedApplication.createdAt)}
+              </p>
+              {selectedApplication.updatedAt && (
+                <p className="text-muted mb-0">
+                  <strong>Last Updated:</strong> {formatDate(selectedApplication.updatedAt)}
+                </p>
+              )}
+            </div>
+          </Col>
+        </Row>
+      </>
+    )}
+  </Modal.Body>
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => setShowModal(false)}>
+      Close
+    </Button>
+  </Modal.Footer>
+</Modal>
     </div>
   );
 }
