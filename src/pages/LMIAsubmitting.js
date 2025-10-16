@@ -56,21 +56,7 @@ function LMIASubmission() {
     additionalNotes: ""
   });
 
-  const provinces = [
-    "Alberta",
-    "British Columbia", 
-    "Manitoba",
-    "New Brunswick",
-    "Newfoundland and Labrador",
-    "Nova Scotia",
-    "Ontario",
-    "Prince Edward Island",
-    "Quebec",
-    "Saskatchewan",
-    "Northwest Territories",
-    "Nunavut",
-    "Yukon"
-  ];
+  
 
   const nocCodes = [
     "0001 - Senior Management",
@@ -513,7 +499,7 @@ function LMIASubmission() {
                         <Col lg={12}>
                           <h5 className="fw-bold text-primary mb-3">
                             <i className="fas fa-certificate me-2"></i>
-                            LMIA Certificate Details (Auto-generated)
+                            
                           </h5>
                         </Col>
                         
@@ -529,7 +515,7 @@ function LMIASubmission() {
                               readOnly
                             />
                             <Form.Text className="text-muted">
-                              Auto-generated certificate number
+                              
                             </Form.Text>
                           </Form.Group>
                         </Col>
@@ -546,7 +532,7 @@ function LMIASubmission() {
                               readOnly
                             />
                             <Form.Text className="text-muted">
-                              Current date (auto-generated)
+                              
                             </Form.Text>
                           </Form.Group>
                         </Col>
@@ -563,7 +549,7 @@ function LMIASubmission() {
                               readOnly
                             />
                             <Form.Text className="text-muted">
-                              5 years from now (auto-generated)
+                              
                             </Form.Text>
                           </Form.Group>
                         </Col>
@@ -600,17 +586,14 @@ function LMIASubmission() {
                             <Form.Label className="fw-semibold">
                               Province/Territory
                             </Form.Label>
-                            <Form.Select
+                            <Form.Control
                               name="province"
                               value={formData.province}
                               onChange={handleInputChange}
                               className="py-2"
                             >
-                              <option value="">Select Province</option>
-                              {provinces.map(province => (
-                                <option key={province} value={province}>{province}</option>
-                              ))}
-                            </Form.Select>
+                             
+                            </Form.Control>
                           </Form.Group>
                         </Col>
 

@@ -290,7 +290,7 @@ function AustraliaWorkPermitFees() {
   const getStatusBadge = (status) => {
     const statusConfig = {
       pending: { variant: "warning", text: "Pending" },
-      verified: { variant: "success", text: "Verified" },
+      approved: { variant: "success", text: "Verified" },
       rejected: { variant: "danger", text: "Rejected" },
       processing: { variant: "info", text: "Processing" },
       completed: { variant: "success", text: "Completed" }
