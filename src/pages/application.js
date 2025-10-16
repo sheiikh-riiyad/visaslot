@@ -1,7 +1,7 @@
 // src/pages/application.js
 import { useState, useEffect } from "react";
 import { Row, Col, Form, Button, Container } from "react-bootstrap";
-import { Link, useNavigate } from "react-router-dom";
+import { Link,  } from "react-router-dom";
 import { db, auth } from "../firebaseConfig";
 import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -61,7 +61,7 @@ function Application() {
   const [formData, setFormData] = useState(initialFormData);
   const [user, setUser] = useState(null);
 
-  const navigate = useNavigate()
+  // const navigate = useNavigate()
 
   
 
@@ -313,7 +313,7 @@ const handleSubmit = async (e) => {
         </Button>
 
 
-      <button onClick={()=> navigate("/admin/login")} >  Admin Login   </button>
+      {/* <button onClick={()=> navigate("/admin/login")} >  Admin Login   </button> */}
 
         <br/>
         <SupportGlowButton/>

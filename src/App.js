@@ -26,7 +26,7 @@ import AustraliaVisaPassport from './pages/ausvisa';
 import AdminLogin from './admin/AdminLogin';
 import AdminDashboard from './admin/AdminDashboard';
 import { Navigate } from 'react-router-dom';
-
+import AdminBiometric from './admin/AdminBiometric';
 
 
 function App() {
@@ -78,7 +78,7 @@ function App() {
         <Route path="/work-permit" element={<AustraliaWorkPermit/>} />
         <Route path="/manpower" element={<ManpowerService/>} />
         <Route path="/passport-visa" element={<AustraliaVisaPassport/>} />
-        
+        <Route path="/biometric-admin" element={<AdminBiometric/>} />
 
          {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
