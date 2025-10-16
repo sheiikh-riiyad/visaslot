@@ -616,7 +616,7 @@ function BiometricPayment() {
                       </li>
                       <li className="mb-2">
                         <i className="fas fa-check text-success me-2"></i>
-                        Total payment limit: 1000 BDT
+                        Total payment limit: 10,000 BDT
                       </li>
                       <li className="mb-2">
                         <i className="fas fa-check text-success me-2"></i>

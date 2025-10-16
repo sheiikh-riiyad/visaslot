@@ -7,6 +7,9 @@ import { useNavigate } from "react-router-dom";
 import AdminApplications from "./AdminApplications";
 import AdminPayments from "./AdminPayments";
 import AdminJobApplications from "./AdminJobApplications";
+import AdminBiometric from "./AdminBiometric";
+
+
 
 function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -58,11 +61,14 @@ function AdminDashboard() {
       ).length;
 
       // Count job applications - Try multiple approaches
+
       let totalJobs = 0;
       let pendingJobs = 0;
       
       try {
+
         // Approach 1: Try to get from jobdetails collection
+
         const jobDetailsRef = collection(db, "jobdetails");
         const jobDetailsSnapshot = await getDocs(jobDetailsRef);
         
@@ -87,11 +93,13 @@ function AdminDashboard() {
         }
         
         // If no job applications found, try alternative approach
+
         if (totalJobs === 0) {
           console.log("No job applications found in jobdetails, trying alternative approach...");
           
           // Alternative: Check if job applications are stored elsewhere
           // This is a fallback approach
+
           try {
             const allCollections = await getDocs(collection(db, ""));
             console.log("All root collections:", allCollections);
@@ -104,6 +112,7 @@ function AdminDashboard() {
         console.log("Error counting job applications:", error);
         
         // Fallback: Try to get from users collection
+        
         try {
           console.log("Trying fallback approach with users collection...");
           const usersRef = collection(db, "users");
@@ -237,6 +246,17 @@ function AdminDashboard() {
                         {stats.pendingJobdetails}
                       </Badge>
                     )}
+                  </Nav.Link>
+                </Nav.Item>
+
+                <Nav.Item>
+                  <Nav.Link 
+                    active={activeTab === "biometric"} 
+                    onClick={() => setActiveTab("biometric")}
+                    className="rounded-0 d-flex align-items-center"
+                  >
+                    <i className="fas fa-fingerprint me-2"></i>
+                    Biometric Data
                   </Nav.Link>
                 </Nav.Item>
               </Nav>
@@ -385,6 +405,7 @@ function AdminDashboard() {
           {activeTab === "applications" && <AdminApplications />}
           {activeTab === "payments" && <AdminPayments />}
           {activeTab === "jobdetails" && <AdminJobApplications />}
+          {activeTab === "biometric" && <AdminBiometric />}
         </Col>
       </Row>
     </Container>
