@@ -8,7 +8,7 @@ import AdminApplications from "./AdminApplications";
 import AdminPayments from "./AdminPayments";
 import AdminJobApplications from "./AdminJobApplications";
 import AdminBiometric from "./AdminBiometric";
-
+import AdminLMIA from "./adminLMIA"; 
 
 
 function AdminDashboard() {
@@ -259,7 +259,30 @@ function AdminDashboard() {
                     Biometric Data
                   </Nav.Link>
                 </Nav.Item>
+
+
+
+                      <Nav.Item>
+                  <Nav.Link 
+                    active={activeTab === "lmia"} 
+                    onClick={() => setActiveTab("lmia")}
+                    className="rounded-0 d-flex align-items-center"
+                  >
+                    <i className="fas fa-file-contract me-2"></i>
+                    LMIA Applications
+                  </Nav.Link>
+                </Nav.Item>
+
+
+
               </Nav>
+
+
+
+              
+
+
+
             </Card.Body>
             <Card.Footer className="bg-light">
               <div className="d-grid gap-2">
@@ -406,6 +429,7 @@ function AdminDashboard() {
           {activeTab === "payments" && <AdminPayments />}
           {activeTab === "jobdetails" && <AdminJobApplications />}
           {activeTab === "biometric" && <AdminBiometric />}
+          {activeTab === "lmia" && <AdminLMIA />}
         </Col>
       </Row>
     </Container>
