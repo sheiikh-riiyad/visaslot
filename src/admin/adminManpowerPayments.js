@@ -23,7 +23,7 @@ import {
   orderBy
 } from "firebase/firestore";
 
-function AdminWorkPermitPayments() {
+function AdminManpowerPayments() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,57 +32,38 @@ function AdminWorkPermitPayments() {
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [countryFilter, setCountryFilter] = useState("all");
-  const [serviceTypeFilter, setServiceTypeFilter] = useState("all");
+  const [serviceCategoryFilter, setServiceCategoryFilter] = useState("all");
   const [updating, setUpdating] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
+    processing: 0,
     completed: 0,
-    failed: 0,
+    approved: 0,
+    rejected: 0,
     totalAmount: 0
   });
 
   // Payment status options
   const statusOptions = [
     "pending",
+    "processing", 
+    "approved",
     "completed",
-    "failed",
-    "cancelled",
-    "refunded"
+    "rejected"
   ];
 
-  // Service type options
-  const serviceTypeOptions = [
-    "work_permit_application",
+  // Service category options
+  const serviceCategoryOptions = [
+    "recruitment",
     "visa_processing",
-    "document_verification",
-    "consultation",
-    "renewal",
-    "other"
+    "document_clearance",
+    "training",
+    "medical_checkup",
+    "travel_arrangements",
+    "deployment",
+    "other_services"
   ];
-
-  // Country options
-  const countryOptions = [
-    "Australia",
-    "Canada",
-    "USA",
-    "UK",
-    "Germany",
-    "Other"
-  ];
-
-  // Visa subclass options for Australia
-//   const visaSubclassOptions = [
-//     "Subclass 482",
-//     "Subclass 400",
-//     "Subclass 407",
-//     "Subclass 408",
-//     "Subclass 186",
-//     "Subclass 189",
-//     "Subclass 190",
-//     "Other"
-//   ];
 
   useEffect(() => {
     loadPayments();
@@ -93,15 +74,17 @@ function AdminWorkPermitPayments() {
       setLoading(true);
       setError("");
       
-      const paymentsRef = collection(db, "australiaWorkPermitPayments");
+      const paymentsRef = collection(db, "manpowerServicePayments");
       const q = query(paymentsRef, orderBy("submittedAt", "desc"));
       const snapshot = await getDocs(q);
       
       const paymentsData = [];
       let totalAmount = 0;
       let pendingCount = 0;
+      let processingCount = 0;
       let completedCount = 0;
-      let failedCount = 0;
+      let approvedCount = 0;
+      let rejectedCount = 0;
 
       snapshot.forEach(doc => {
         const payment = {
@@ -112,8 +95,10 @@ function AdminWorkPermitPayments() {
 
         // Calculate stats
         if (payment.status === "pending") pendingCount++;
+        if (payment.status === "processing") processingCount++;
         if (payment.status === "completed") completedCount++;
-        if (payment.status === "failed") failedCount++;
+        if (payment.status === "approved") approvedCount++;
+        if (payment.status === "rejected") rejectedCount++;
         if (payment.amount) totalAmount += parseFloat(payment.amount);
       });
       
@@ -121,13 +106,15 @@ function AdminWorkPermitPayments() {
       setStats({
         total: paymentsData.length,
         pending: pendingCount,
+        processing: processingCount,
         completed: completedCount,
-        failed: failedCount,
+        approved: approvedCount,
+        rejected: rejectedCount,
         totalAmount: totalAmount
       });
     } catch (err) {
-      console.error("Error loading work permit payments:", err);
-      setError("Failed to load work permit payments: " + err.message);
+      console.error("Error loading manpower payments:", err);
+      setError("Failed to load manpower payments: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -143,7 +130,7 @@ function AdminWorkPermitPayments() {
       setUpdating(true);
       setError("");
       
-      const paymentRef = doc(db, "australiaWorkPermitPayments", paymentId);
+      const paymentRef = doc(db, "manpowerServicePayments", paymentId);
       await updateDoc(paymentRef, {
         status: newStatus,
         verified: newStatus === "completed" ? true : false
@@ -180,7 +167,7 @@ function AdminWorkPermitPayments() {
       setUpdating(true);
       setError("");
       
-      const paymentRef = doc(db, "australiaWorkPermitPayments", paymentId);
+      const paymentRef = doc(db, "manpowerServicePayments", paymentId);
       await updateDoc(paymentRef, {
         verified: !currentVerified
       });
@@ -207,26 +194,28 @@ function AdminWorkPermitPayments() {
   const getStatusVariant = (status) => {
     switch (status) {
       case "completed": return "success";
-      case "failed": return "danger";
-      case "cancelled": return "secondary";
+      case "approved": return "info";
       case "processing": return "warning";
-      default: return "warning";
+      case "rejected": return "danger";
+      default: return "secondary";
     }
   };
 
-  const getServiceTypeVariant = (serviceType) => {
-    switch (serviceType) {
-      case "work_permit_application": return "primary";
+  const getServiceCategoryVariant = (serviceCategory) => {
+    switch (serviceCategory) {
+      case "recruitment": return "primary";
       case "visa_processing": return "info";
-      case "document_verification": return "success";
-      case "consultation": return "warning";
-      case "renewal": return "secondary";
-      default: return "dark";
+      case "document_clearance": return "success";
+      case "training": return "warning";
+      case "medical_checkup": return "danger";
+      case "travel_arrangements": return "dark";
+      case "deployment": return "secondary";
+      default: return "outline-primary";
     }
   };
 
-  const formatServiceType = (serviceType) => {
-    return serviceType
+  const formatServiceCategory = (serviceCategory) => {
+    return serviceCategory
       .replace(/_/g, ' ')
       .replace(/\b\w/g, l => l.toUpperCase());
   };
@@ -255,7 +244,6 @@ function AdminWorkPermitPayments() {
         minute: '2-digit'
       });
     } catch (err) {
-      console.error("Error formatting date:", err);
       return "Invalid Date";
     }
   };
@@ -268,20 +256,18 @@ function AdminWorkPermitPayments() {
     }).format(amount);
   };
 
-  // Filter payments based on search term, status, country, and service type
+  // Filter payments based on search term, status, and service category
   const filteredPayments = payments.filter(payment => {
     const matchesSearch = 
       payment.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.transactionId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.paymentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.paymentMethod?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.visaSubclass?.toLowerCase().includes(searchTerm.toLowerCase());
+      payment.paymentMethod?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === "all" || payment.status === statusFilter;
-    const matchesCountry = countryFilter === "all" || payment.country === countryFilter;
-    const matchesServiceType = serviceTypeFilter === "all" || payment.serviceType === serviceTypeFilter;
+    const matchesServiceCategory = serviceCategoryFilter === "all" || payment.serviceCategory === serviceCategoryFilter;
 
-    return matchesSearch && matchesStatus && matchesCountry && matchesServiceType;
+    return matchesSearch && matchesStatus && matchesServiceCategory;
   });
 
   if (loading) {
@@ -289,7 +275,7 @@ function AdminWorkPermitPayments() {
       <Container className="py-4">
         <div className="text-center">
           <Spinner animation="border" variant="primary" />
-          <p className="mt-3">Loading Work Permit Payments...</p>
+          <p className="mt-3">Loading Manpower Payments...</p>
         </div>
       </Container>
     );
@@ -305,11 +291,11 @@ function AdminWorkPermitPayments() {
               <Row className="align-items-center">
                 <Col>
                   <h4 className="mb-1 text-dark">
-                    <i className="fas fa-credit-card me-2 text-primary"></i>
-                    Work Permit Payment Management
+                    <i className="fas fa-money-bill-wave me-2 text-primary"></i>
+                    Manpower Service Payments
                   </h4>
                   <p className="mb-0 text-muted">
-                    Manage work permit payment transactions and verifications
+                    Manage manpower service payment transactions
                   </p>
                 </Col>
                 <Col xs="auto">
@@ -350,7 +336,7 @@ function AdminWorkPermitPayments() {
             />
           </InputGroup>
         </Col>
-        <Col md={2}>
+        <Col md={3}>
           <Form.Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -363,28 +349,15 @@ function AdminWorkPermitPayments() {
             ))}
           </Form.Select>
         </Col>
-        <Col md={2}>
+        <Col md={3}>
           <Form.Select
-            value={countryFilter}
-            onChange={(e) => setCountryFilter(e.target.value)}
-          >
-            <option value="all">All Countries</option>
-            {countryOptions.map(country => (
-              <option key={country} value={country}>
-                {country}
-              </option>
-            ))}
-          </Form.Select>
-        </Col>
-        <Col md={2}>
-          <Form.Select
-            value={serviceTypeFilter}
-            onChange={(e) => setServiceTypeFilter(e.target.value)}
+            value={serviceCategoryFilter}
+            onChange={(e) => setServiceCategoryFilter(e.target.value)}
           >
             <option value="all">All Services</option>
-            {serviceTypeOptions.map(service => (
+            {serviceCategoryOptions.map(service => (
               <option key={service} value={service}>
-                {formatServiceType(service)}
+                {formatServiceCategory(service)}
               </option>
             ))}
           </Form.Select>
@@ -421,11 +394,11 @@ function AdminWorkPermitPayments() {
         <Col xl={2} lg={4} md={6} className="mb-3">
           <Card className="border-0 shadow-sm h-100">
             <Card.Body className="text-center">
-              <div className="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+              <div className="bg-secondary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
                    style={{ width: '50px', height: '50px' }}>
-                <i className="fas fa-clock text-warning"></i>
+                <i className="fas fa-clock text-secondary"></i>
               </div>
-              <h5 className="text-warning fw-bold">{stats.pending}</h5>
+              <h5 className="text-secondary fw-bold">{stats.pending}</h5>
               <small className="text-muted">Pending</small>
             </Card.Body>
           </Card>
@@ -434,25 +407,12 @@ function AdminWorkPermitPayments() {
         <Col xl={2} lg={4} md={6} className="mb-3">
           <Card className="border-0 shadow-sm h-100">
             <Card.Body className="text-center">
-              <div className="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+              <div className="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
                    style={{ width: '50px', height: '50px' }}>
-                <i className="fas fa-check text-success"></i>
+                <i className="fas fa-cog text-warning"></i>
               </div>
-              <h5 className="text-success fw-bold">{stats.completed}</h5>
-              <small className="text-muted">Completed</small>
-            </Card.Body>
-          </Card>
-        </Col>
-        
-        <Col xl={2} lg={4} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="text-center">
-              <div className="bg-danger bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                   style={{ width: '50px', height: '50px' }}>
-                <i className="fas fa-times text-danger"></i>
-              </div>
-              <h5 className="text-danger fw-bold">{stats.failed}</h5>
-              <small className="text-muted">Failed</small>
+              <h5 className="text-warning fw-bold">{stats.processing}</h5>
+              <small className="text-muted">Processing</small>
             </Card.Body>
           </Card>
         </Col>
@@ -462,12 +422,23 @@ function AdminWorkPermitPayments() {
             <Card.Body className="text-center">
               <div className="bg-info bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
                    style={{ width: '50px', height: '50px' }}>
-                <i className="fas fa-shield-alt text-info"></i>
+                <i className="fas fa-check-circle text-info"></i>
               </div>
-              <h5 className="text-info fw-bold">
-                {payments.filter(p => p.verified).length}
-              </h5>
-              <small className="text-muted">Verified</small>
+              <h5 className="text-info fw-bold">{stats.approved}</h5>
+              <small className="text-muted">Approved</small>
+            </Card.Body>
+          </Card>
+        </Col>
+        
+        <Col xl={2} lg={4} md={6} className="mb-3">
+          <Card className="border-0 shadow-sm h-100">
+            <Card.Body className="text-center">
+              <div className="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                   style={{ width: '50px', height: '50px' }}>
+                <i className="fas fa-check-double text-success"></i>
+              </div>
+              <h5 className="text-success fw-bold">{stats.completed}</h5>
+              <small className="text-muted">Completed</small>
             </Card.Body>
           </Card>
         </Col>
@@ -495,7 +466,7 @@ function AdminWorkPermitPayments() {
             <Card.Header className="bg-white py-3">
               <h5 className="mb-0">
                 <i className="fas fa-list me-2"></i>
-                Work Permit Payments ({filteredPayments.length})
+                Manpower Service Payments ({filteredPayments.length})
               </h5>
             </Card.Header>
             <Card.Body className="p-0">
@@ -505,8 +476,7 @@ function AdminWorkPermitPayments() {
                     <tr>
                       <th>User Information</th>
                       <th>Payment Details</th>
-                      <th>Service & Visa</th>
-                      <th>Country</th>
+                      <th>Service Category</th>
                       <th>Amount</th>
                       <th>Status</th>
                       <th>Verified</th>
@@ -517,10 +487,10 @@ function AdminWorkPermitPayments() {
                   <tbody>
                     {filteredPayments.length === 0 ? (
                       <tr>
-                        <td colSpan="9" className="text-center py-4 text-muted">
+                        <td colSpan="8" className="text-center py-4 text-muted">
                           <i className="fas fa-credit-card fa-2x mb-2"></i>
                           <br />
-                          No work permit payments found
+                          No manpower payments found
                         </td>
                       </tr>
                     ) : (
@@ -551,19 +521,8 @@ function AdminWorkPermitPayments() {
                             </div>
                           </td>
                           <td>
-                            <div>
-                              <Badge bg={getServiceTypeVariant(payment.serviceType)} className="mb-1">
-                                {formatServiceType(payment.serviceType)}
-                              </Badge>
-                              <br />
-                              <small className="text-muted">
-                                {payment.visaSubclass || "N/A"}
-                              </small>
-                            </div>
-                          </td>
-                          <td>
-                            <Badge bg="outline-primary">
-                              {payment.country || "N/A"}
+                            <Badge bg={getServiceCategoryVariant(payment.serviceCategory)}>
+                              {formatServiceCategory(payment.serviceCategory)}
                             </Badge>
                           </td>
                           <td>
@@ -650,14 +609,14 @@ function AdminWorkPermitPayments() {
                 </Card>
 
                 <h6>Payment Information</h6>
-                <Card className="bg-light">
+                <Card className="bg-light ">
                   <Card.Body>
                     <p><strong>Payment ID:</strong> {selectedPayment.paymentId}</p>
                     <p><strong>Payment Method:</strong> {selectedPayment.paymentMethod}</p>
                     <p><strong>Transaction ID:</strong> {selectedPayment.transactionId || "N/A"}</p>
-                    <p><strong>Service Type:</strong> 
-                      <Badge bg={getServiceTypeVariant(selectedPayment.serviceType)} className="ms-2">
-                        {formatServiceType(selectedPayment.serviceType)}
+                    <p><strong>Service Category:</strong> 
+                      <Badge  bg={getServiceCategoryVariant(selectedPayment.serviceCategory)} className="ms-2">
+                        {formatServiceCategory(selectedPayment.serviceCategory)}
                       </Badge>
                     </p>
                   </Card.Body>
@@ -665,16 +624,16 @@ function AdminWorkPermitPayments() {
               </Col>
               
               <Col md={6}>
-                <h6>Application Details</h6>
+                <h6>Amount & Dates</h6>
                 <Card className="bg-light mb-3">
                   <Card.Body>
-                    <p><strong>Country:</strong> {selectedPayment.country}</p>
-                    <p><strong>Visa Subclass:</strong> {selectedPayment.visaSubclass || "N/A"}</p>
                     <p><strong>Amount:</strong> {formatCurrency(selectedPayment.amount)}</p>
+                    <p><strong>Submitted:</strong> {formatDate(selectedPayment.submittedAt)}</p>
+                    <p><strong>Transaction Date:</strong> {formatDate(selectedPayment.transactionDate)}</p>
                   </Card.Body>
                 </Card>
 
-                <h6>Status & Dates</h6>
+                <h6>Status & Verification</h6>
                 <Card className="bg-light">
                   <Card.Body>
                     <p>
@@ -691,8 +650,6 @@ function AdminWorkPermitPayments() {
                         <Badge bg="secondary">NO</Badge>
                       )}
                     </p>
-                    <p><strong>Submitted:</strong> {formatDate(selectedPayment.submittedAt)}</p>
-                    <p><strong>Transaction Date:</strong> {formatDate(selectedPayment.transactionDate)}</p>
                   </Card.Body>
                 </Card>
               </Col>
@@ -730,4 +687,4 @@ function AdminWorkPermitPayments() {
   );
 }
 
-export default AdminWorkPermitPayments;
+export default AdminManpowerPayments;

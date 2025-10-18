@@ -10,6 +10,7 @@ import AdminJobApplications from "./AdminJobApplications";
 import AdminBiometric from "./AdminBiometric";
 import AdminLMIA from "./adminLMIA"; 
 import AdminWorkPermit from "./adminWorkPermit";
+import AdminManpower from "./adminManpower";
 
 
 function AdminDashboard() {
@@ -291,6 +292,20 @@ function AdminDashboard() {
 
 
 
+
+
+                <Nav.Item>
+                  <Nav.Link 
+                    active={activeTab === "manpower"} 
+                    onClick={() => setActiveTab("manpower")}
+                    className="rounded-0 d-flex align-items-center"
+                  >
+                    <i className="fas fa-file-contract me-2"></i>
+                    man power
+                  </Nav.Link>
+                </Nav.Item>
+
+
               </Nav>
 
 
@@ -447,6 +462,8 @@ function AdminDashboard() {
           {activeTab === "biometric" && <AdminBiometric />}
           {activeTab === "lmia" && <AdminLMIA />}
           {activeTab === "workpermit" && <AdminWorkPermit />}
+          {activeTab === "manpower" && <AdminManpower />}
+
         </Col>
       </Row>
     </Container>
