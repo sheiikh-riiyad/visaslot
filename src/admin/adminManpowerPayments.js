@@ -521,9 +521,9 @@ function AdminManpowerPayments() {
                             </div>
                           </td>
                           <td>
-                            <Badge bg={getServiceCategoryVariant(payment.serviceCategory)}>
+                            <p bg={getServiceCategoryVariant(payment.serviceCategory)}>
                               {formatServiceCategory(payment.serviceCategory)}
-                            </Badge>
+                            </p>
                           </td>
                           <td>
                             <strong>{formatCurrency(payment.amount)}</strong>
