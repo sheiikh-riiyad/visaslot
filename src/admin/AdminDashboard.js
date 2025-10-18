@@ -9,6 +9,7 @@ import AdminPayments from "./AdminPayments";
 import AdminJobApplications from "./AdminJobApplications";
 import AdminBiometric from "./AdminBiometric";
 import AdminLMIA from "./adminLMIA"; 
+import AdminWorkPermit from "./adminWorkPermit";
 
 
 function AdminDashboard() {
@@ -262,7 +263,7 @@ function AdminDashboard() {
 
 
 
-                      <Nav.Item>
+                <Nav.Item>
                   <Nav.Link 
                     active={activeTab === "lmia"} 
                     onClick={() => setActiveTab("lmia")}
@@ -270,6 +271,21 @@ function AdminDashboard() {
                   >
                     <i className="fas fa-file-contract me-2"></i>
                     LMIA Applications
+                  </Nav.Link>
+                </Nav.Item>
+
+
+
+
+
+                <Nav.Item>
+                  <Nav.Link 
+                    active={activeTab === "workpermit"} 
+                    onClick={() => setActiveTab("workpermit")}
+                    className="rounded-0 d-flex align-items-center"
+                  >
+                    <i className="fas fa-file-contract me-2"></i>
+                    Work permit
                   </Nav.Link>
                 </Nav.Item>
 
@@ -430,6 +446,7 @@ function AdminDashboard() {
           {activeTab === "jobdetails" && <AdminJobApplications />}
           {activeTab === "biometric" && <AdminBiometric />}
           {activeTab === "lmia" && <AdminLMIA />}
+          {activeTab === "workpermit" && <AdminWorkPermit />}
         </Col>
       </Row>
     </Container>
