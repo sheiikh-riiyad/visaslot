@@ -23,6 +23,7 @@ function Jobdetails() {
   const [existingApplication, setExistingApplication] = useState(null);
   const [isChecking, setIsChecking] = useState(true);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [fileLoading, setFileLoading] = useState(false);
 
   console.log(isSubmitted)
 
@@ -240,14 +241,22 @@ function Jobdetails() {
     }
   };
 
-  // const downloadConfirmationFile = () => {
-  //   if (existingApplication?.confirmation) {
-  //     const link = document.createElement('a');
-  //     link.href = existingApplication.confirmation;
-  //     link.download = existingApplication.confirmationFileName || 'confirmation_file';
-  //     link.click();
-  //   }
-  // };
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const downloadConfirmationFile = () => {
+    if (existingApplication?.confirmationLetter) {
+      const link = document.createElement('a');
+      link.href = existingApplication.confirmationLetter;
+      link.download = existingApplication.confirmationLetterName || 'confirmation-letter';
+      link.click();
+    }
+  };
 
   const getStatusVariant = (status) => {
     switch (status?.toLowerCase()) {
@@ -257,6 +266,13 @@ function Jobdetails() {
       case "under_review": return "info";
       default: return "secondary";
     }
+  };
+
+  const handleViewConfirmation = () => {
+    setFileLoading(true);
+    setShowConfirmationModal(true);
+    // Simulate loading for better UX
+    setTimeout(() => setFileLoading(false), 500);
   };
 
   if (isChecking) {
@@ -393,21 +409,26 @@ function Jobdetails() {
                           </div>
 
                           {/* Show Confirmation Button if status is approved and confirmation exists */}
-                          {existingApplication.status === "approved" && existingApplication.confirmation && (
+                          {existingApplication.status === "approved" && existingApplication.confirmationLetter && (
                             <div className="d-flex mb-2 align-items-center">
                               <span className="text-muted me-3" style={{ width: '140px' }}>Confirmation:</span>
-                              <Button
-                                variant="success"
-                                size="sm"
-                                onClick={() => setShowConfirmationModal(true)}
-                                className="me-2"
-                              >
-                                <i className="fas fa-file-download me-1"></i>
-                                View Confirmation
-                              </Button>
-                              <small className="text-muted">
-                                
-                              </small>
+                              <div>
+                                <Button
+                                  variant="success"
+                                  size="sm"
+                                  onClick={handleViewConfirmation}
+                                  className="me-2"
+                                >
+                                  <i className="fas fa-file-alt me-1"></i>
+                                  View Confirmation
+                                </Button>
+                                <small className="text-muted d-block mt-1">
+                                  File: {existingApplication.confirmationLetterName}
+                                  {existingApplication.confirmationLetterSize && (
+                                    <> ({formatFileSize(existingApplication.confirmationLetterSize)})</>
+                                  )}
+                                </small>
+                              </div>
                             </div>
                           )}
                         </Col>
@@ -420,75 +441,131 @@ function Jobdetails() {
                 </Card>
 
                 {/* Confirmation File Modal */}
-                <Modal show={showConfirmationModal} onHide={() => setShowConfirmationModal(false)} size="lg">
+                <Modal show={showConfirmationModal} onHide={() => setShowConfirmationModal(false)} size="xl" centered>
                   <Modal.Header closeButton className="bg-success text-white">
                     <Modal.Title>
                       <i className="fas fa-file-contract me-2"></i>
                       Confirmation Letter - {existingApplication.name}
                     </Modal.Title>
                   </Modal.Header>
-                  <Modal.Body>
-                    <div className="text-center mb-4">
-                      <div className="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                           style={{ width: '80px', height: '80px' }}>
-                        <i className="fas fa-file-contract fa-2x text-success"></i>
+                  <Modal.Body className="p-4">
+                    {fileLoading ? (
+                      <div className="text-center py-5">
+                        <div className="spinner-border text-success mb-3" role="status">
+                          <span className="visually-hidden">Loading...</span>
+                        </div>
+                        <p>Loading confirmation letter...</p>
                       </div>
-                      <h4 className="text-success">Application Approved!</h4>
-                      <p className="text-muted">
-                        Your job application has been approved. Below is your confirmation letter.
-                      </p>
-                    </div>
-
-                    <Row className="mb-4">
-                      <Col md={6}>
-                        <h6 className="text-primary border-bottom pb-2">File Information</h6>
-                        <p><strong>File Name:</strong> {existingApplication.confirmationFileName}</p>
-                        <p><strong>File Type:</strong> {existingApplication.confirmationFileType}</p>
-                        {existingApplication.confirmationUploadedAt && (
-                          <p><strong>Uploaded:</strong> {formatDate(existingApplication.confirmationUploadedAt)}</p>
-                        )}
-                      </Col>
-                      <Col md={6}>
-                        <h6 className="text-primary border-bottom pb-2">Preview</h6>
-                        {existingApplication.confirmationFileType?.includes('image') ? (
-                          <div className="text-center">
-                            <img 
-                              src={existingApplication.confirmation} 
-                              alt="Confirmation Letter" 
-                              className="img-fluid rounded border"
-                              style={{ maxHeight: '300px' }}
-                            />
+                    ) : (
+                      <>
+                        <div className="text-center mb-4">
+                          <div className="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                               style={{ width: '80px', height: '80px' }}>
+                            <i className="fas fa-file-contract fa-2x text-success"></i>
                           </div>
-                        ) : (
-                          <div className="text-center p-4 border rounded bg-light">
-                            <i className="fas fa-file-pdf fa-3x text-danger mb-3"></i>
-                            <p className="mb-2">PDF Document</p>
-                            <p className="text-muted small">
-                              Click the download button below to view the confirmation letter
-                            </p>
-                          </div>
-                        )}
-                      </Col>
-                    </Row>
+                          <h4 className="text-success">Application Approved!</h4>
+                          <p className="text-muted">
+                            Your job application has been approved. Below is your confirmation letter.
+                          </p>
+                        </div>
 
-                    <div className="d-flex justify-content-center gap-3">
-                      {/* <Button
-                        variant="success"
-                        onClick={downloadConfirmationFile}
-                        className="px-4"
-                      >
-                        <i className="fas fa-download me-2"></i>
-                        Download Confirmation
-                      </Button> */}
-                      <Button
-                        variant="outline-secondary"
-                        onClick={() => setShowConfirmationModal(false)}
-                        className="px-4"
-                      >
-                        <i className="fas fa-times me-2"></i>
-                        Close
-                      </Button>
-                    </div>
+                        <Row className="mb-4">
+                          <Col md={6}>
+                            <h6 className="text-primary border-bottom pb-2">File Information</h6>
+                            <div className="mb-3">
+                              <strong>File Name:</strong> 
+                              <div className="text-muted">{existingApplication.confirmationLetterName}</div>
+                            </div>
+                            <div className="mb-3">
+                              <strong>File Type:</strong> 
+                              <div className="text-muted">{existingApplication.confirmationLetterType || 'Unknown'}</div>
+                            </div>
+                            <div className="mb-3">
+                              <strong>File Size:</strong> 
+                              <div className="text-muted">
+                                {existingApplication.confirmationLetterSize 
+                                  ? formatFileSize(existingApplication.confirmationLetterSize) 
+                                  : 'Unknown'
+                                }
+                              </div>
+                            </div>
+                            {existingApplication.confirmationLetterUploadedAt && (
+                              <div className="mb-3">
+                                <strong>Uploaded:</strong> 
+                                <div className="text-muted">{formatDate(existingApplication.confirmationLetterUploadedAt)}</div>
+                              </div>
+                            )}
+                          </Col>
+                          
+                          <Col md={6}>
+                            <h6 className="text-primary border-bottom pb-2">Document Preview</h6>
+                            {existingApplication.confirmationLetterType?.includes('image') ? (
+                              <div className="text-center border rounded p-3">
+                                <img 
+                                  src={existingApplication.confirmationLetter} 
+                                  alt="Confirmation Letter" 
+                                  className="img-fluid rounded"
+                                  style={{ maxHeight: '400px', maxWidth: '100%' }}
+                                  onError={(e) => {
+                                    console.error("Error loading image");
+                                    e.target.style.display = 'none';
+                                    const errorDiv = e.target.parentNode.querySelector('.image-error');
+                                    if (errorDiv) errorDiv.style.display = 'block';
+                                  }}
+                                />
+                                <div className="image-error alert alert-warning mt-2" style={{display: 'none'}}>
+                                  <i className="fas fa-exclamation-triangle me-2"></i>
+                                  Unable to load image preview. Please download the file to view it.
+                                </div>
+                                <p className="text-muted small mt-2">Image Preview</p>
+                              </div>
+                            ) : existingApplication.confirmationLetterType === 'application/pdf' ? (
+                              <div className="text-center border rounded p-4 bg-light">
+                                <i className="fas fa-file-pdf fa-4x text-danger mb-3"></i>
+                                <p className="mb-2 fw-bold">PDF Document</p>
+                                <p className="text-muted small">
+                                  This is a PDF document. Click the download button below to view the confirmation letter.
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="text-center border rounded p-4 bg-light">
+                                <i className="fas fa-file fa-4x text-primary mb-3"></i>
+                                <p className="mb-2 fw-bold">Document File</p>
+                                <p className="text-muted small">
+                                  This file type cannot be previewed. Please download the file to view it.
+                                </p>
+                              </div>
+                            )}
+                          </Col>
+                        </Row>
+
+                        <div className="d-flex justify-content-center gap-3 pt-3 border-top">
+                          <Button
+                            variant="success"
+                            onClick={downloadConfirmationFile}
+                            className="px-4 py-2"
+                          >
+                            <i className="fas fa-download me-2"></i>
+                            Download Confirmation
+                          </Button>
+                          <Button
+                            variant="outline-secondary"
+                            onClick={() => setShowConfirmationModal(false)}
+                            className="px-4 py-2"
+                          >
+                            <i className="fas fa-times me-2"></i>
+                            Close
+                          </Button>
+                        </div>
+
+                        <div className="text-center mt-3">
+                          <small className="text-muted">
+                            <i className="fas fa-info-circle me-1"></i>
+                            File stored securely on our servers. Download to save a copy.
+                          </small>
+                        </div>
+                      </>
+                    )}
                   </Modal.Body>
                 </Modal>
               </>

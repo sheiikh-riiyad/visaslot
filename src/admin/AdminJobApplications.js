@@ -12,7 +12,9 @@ function AdminJobApplications() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("applications"); // New state for tabs
+  const [activeTab, setActiveTab] = useState("applications");
+  const [editableData, setEditableData] = useState({});
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     fetchJobApplications();
@@ -65,7 +67,6 @@ function AdminJobApplications() {
   const handleStatusUpdate = async (applicationId, userId, newStatus) => {
     try {
       setActionLoading(true);
-      // Correct path: jobdetails/[userID]/applications/[applicationID]
       const applicationRef = doc(db, `jobdetails/${userId}/applications`, applicationId);
       
       await updateDoc(applicationRef, {
@@ -91,6 +92,11 @@ function AdminJobApplications() {
           status: newStatus,
           updatedAt: new Date().toISOString()
         }));
+        setEditableData(prev => ({
+          ...prev,
+          status: newStatus,
+          updatedAt: new Date().toISOString()
+        }));
       }
 
       setActionLoading(false);
@@ -98,6 +104,41 @@ function AdminJobApplications() {
     } catch (error) {
       console.error("Error updating job application status:", error);
       alert("Error updating status: " + error.message);
+      setActionLoading(false);
+    }
+  };
+
+  const handleFieldUpdate = async (field, value) => {
+    if (!selectedApplication) return;
+
+    try {
+      setActionLoading(true);
+      const applicationRef = doc(db, `jobdetails/${selectedApplication.userId}/applications`, selectedApplication.id);
+      
+      await updateDoc(applicationRef, {
+        [field]: value,
+        updatedAt: new Date().toISOString()
+      });
+
+      // Update local state
+      const updatedApplication = {
+        ...selectedApplication,
+        [field]: value,
+        updatedAt: new Date().toISOString()
+      };
+
+      setSelectedApplication(updatedApplication);
+      setEditableData(updatedApplication);
+      setJobApplications(prev => prev.map(app => 
+        app.id === selectedApplication.id && app.userId === selectedApplication.userId 
+          ? updatedApplication 
+          : app
+      ));
+
+    } catch (error) {
+      console.error("Error updating field:", error);
+      alert("Error updating field: " + error.message);
+    } finally {
       setActionLoading(false);
     }
   };
@@ -115,6 +156,14 @@ function AdminJobApplications() {
     } catch {
       return "N/A";
     }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const getStatusVariant = (status) => {
@@ -150,6 +199,28 @@ function AdminJobApplications() {
   const pendingCount = jobApplications.filter(app => !app.status || app.status === "pending").length;
   const totalCount = jobApplications.length;
 
+  const handleEditToggle = () => {
+    if (editMode) {
+      // Save all changes when exiting edit mode
+      Object.keys(editableData).forEach(field => {
+        if (editableData[field] !== selectedApplication[field]) {
+          handleFieldUpdate(field, editableData[field]);
+        }
+      });
+    } else {
+      // Enter edit mode - initialize editable data
+      setEditableData(selectedApplication);
+    }
+    setEditMode(!editMode);
+  };
+
+  const handleInputChange = (field, value) => {
+    setEditableData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   if (loading) {
     return (
       <div className="text-center py-4">
@@ -158,18 +229,6 @@ function AdminJobApplications() {
       </div>
     );
   }
-
-
-
-  // Add this function inside your AdminJobApplications component
-const convertToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-  });
-};
 
   return (
     <div>
@@ -221,6 +280,7 @@ const convertToBase64 = (file) => {
                 variant="outline-light" 
                 size="sm"
                 onClick={fetchJobApplications}
+                disabled={loading}
               >
                 <i className="fas fa-sync-alt me-1"></i>
                 Refresh
@@ -300,6 +360,8 @@ const convertToBase64 = (file) => {
                               size="sm"
                               onClick={() => {
                                 setSelectedApplication(application);
+                                setEditableData(application);
+                                setEditMode(false);
                                 setShowModal(true);
                               }}
                               title="View Details"
@@ -344,283 +406,501 @@ const convertToBase64 = (file) => {
       {activeTab === "payments" && <AdminJobPayments />}
 
       {/* Application Details Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-  <Modal.Header closeButton className="bg-primary text-white">
-    <Modal.Title>
-      <i className="fas fa-briefcase me-2"></i>
-      Job Application Details - {selectedApplication?.name}
-    </Modal.Title>
-  </Modal.Header>
-  <Modal.Body>
-    {selectedApplication && (
-      <>
-        <Row className="mb-4">
-          <Col md={6}>
-            <h6 className="text-primary border-bottom pb-2">Applicant Information</h6>
-            <p><strong>Full Name:</strong> {selectedApplication.name}</p>
-            <p><strong>Passport Number:</strong> <code>{selectedApplication.passportNo}</code></p>
-            <p><strong>Email:</strong> {selectedApplication.userEmail}</p>
-            <p><strong>User ID:</strong> <code>{selectedApplication.userId}</code></p>
-          </Col>
-          <Col md={6}>
-            <h6 className="text-primary border-bottom pb-2">Job Information</h6>
-            <p><strong>Company:</strong> {selectedApplication.company}</p>
-            <p><strong>Job Category:</strong> {selectedApplication.jobCategory}</p>
-            <p><strong>Employment Type:</strong> 
-              <Badge bg="secondary" className="ms-2 text-capitalize">
-                {selectedApplication.employmentType}
-              </Badge>
-            </p>
-            <p><strong>Location:</strong> {selectedApplication.location}</p>
-            <p><strong>Experience Required:</strong> {selectedApplication.experience}</p>
-          </Col>
-        </Row>
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" scrollable>
+        <Modal.Header closeButton className="bg-primary text-white">
+          <Modal.Title>
+            <i className="fas fa-briefcase me-2"></i>
+            Job Application Details - {selectedApplication?.name}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedApplication && (
+            <>
+              {/* Edit Mode Toggle */}
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="mb-0">Application Information</h5>
+                <Button
+                  variant={editMode ? "success" : "outline-primary"}
+                  size="sm"
+                  onClick={handleEditToggle}
+                  disabled={actionLoading}
+                >
+                  <i className={`fas ${editMode ? "fa-save" : "fa-edit"} me-1`}></i>
+                  {editMode ? "Save Changes" : "Edit Application"}
+                </Button>
+              </div>
 
-        <Row className="mb-4">
-          <Col md={12}>
-            <h6 className="text-primary border-bottom pb-2">Application Timeline</h6>
-            <p><strong>Application ID:</strong> <code>{selectedApplication.id}</code></p>
-            <p><strong>Submitted:</strong> {formatDate(selectedApplication.submittedAt)}</p>
-            {selectedApplication.updatedAt && (
-              <p><strong>Last Updated:</strong> {formatDate(selectedApplication.updatedAt)}</p>
-            )}
-          </Col>
-        </Row>
+              <Row className="mb-4">
+                <Col md={6}>
+                  <h6 className="text-primary border-bottom pb-2">Applicant Information</h6>
+                  
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Full Name</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.name || ""}
+                        onChange={(e) => handleInputChange("name", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.name}</p>
+                    )}
+                  </Form.Group>
 
-        {/* Confirmation Letter Upload Section */}
-        <Row className="mb-4">
-          <Col md={12}>
-            <h6 className="text-primary border-bottom pb-2">Confirmation Letter</h6>
-            <Form.Group>
-              <Form.Label>
-                <strong>Upload Confirmation Letter (Image/PDF)</strong>
-              </Form.Label>
-              <Form.Control
-                type="file"
-                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
-                onChange={async (e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    try {
-                      setActionLoading(true);
-                      // Convert file to base64
-                      const base64 = await convertToBase64(file);
-                      
-                      // Update Firestore with the base64 file
-                      const applicationRef = doc(db, `jobdetails/${selectedApplication.userId}/applications`, selectedApplication.id);
-                      await updateDoc(applicationRef, {
-                        confirmation: base64,
-                        confirmationFileName: file.name,
-                        confirmationFileType: file.type,
-                        confirmationUploadedAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString()
-                      });
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Passport Number</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.passportNo || ""}
+                        onChange={(e) => handleInputChange("passportNo", e.target.value)}
+                      />
+                    ) : (
+                      <p><code>{selectedApplication.passportNo}</code></p>
+                    )}
+                  </Form.Group>
 
-                      // Update local state
-                      setSelectedApplication(prev => ({
-                        ...prev,
-                        confirmation: base64,
-                        confirmationFileName: file.name,
-                        confirmationFileType: file.type,
-                        confirmationUploadedAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString()
-                      }));
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Email</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="email"
+                        value={editableData.userEmail || ""}
+                        onChange={(e) => handleInputChange("userEmail", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.userEmail}</p>
+                    )}
+                  </Form.Group>
 
-                      setJobApplications(prev => prev.map(app => 
-                        app.id === selectedApplication.id && app.userId === selectedApplication.userId
-                          ? { 
-                              ...app, 
-                              confirmation: base64,
-                              confirmationFileName: file.name,
-                              confirmationFileType: file.type,
-                              confirmationUploadedAt: new Date().toISOString(),
-                              updatedAt: new Date().toISOString()
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>User ID</strong></Form.Label>
+                    <p><code>{selectedApplication.userId}</code></p>
+                  </Form.Group>
+                </Col>
+
+                <Col md={6}>
+                  <h6 className="text-primary border-bottom pb-2">Job Information</h6>
+                  
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Company</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.company || ""}
+                        onChange={(e) => handleInputChange("company", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.company}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Job Category</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.jobCategory || ""}
+                        onChange={(e) => handleInputChange("jobCategory", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.jobCategory}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Employment Type</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Select
+                        value={editableData.employmentType || ""}
+                        onChange={(e) => handleInputChange("employmentType", e.target.value)}
+                      >
+                        <option value="">Select Type</option>
+                        <option value="full-time">Full Time</option>
+                        <option value="part-time">Part Time</option>
+                        <option value="contract">Contract</option>
+                        <option value="temporary">Temporary</option>
+                        <option value="internship">Internship</option>
+                      </Form.Select>
+                    ) : (
+                      <p>
+                        <Badge bg="secondary" className="text-capitalize">
+                          {selectedApplication.employmentType}
+                        </Badge>
+                      </p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Location</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.location || ""}
+                        onChange={(e) => handleInputChange("location", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.location}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Experience Required</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.experience || ""}
+                        onChange={(e) => handleInputChange("experience", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.experience}</p>
+                    )}
+                  </Form.Group>
+
+                  {/* Additional editable fields */}
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Salary</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.salary || ""}
+                        onChange={(e) => handleInputChange("salary", e.target.value)}
+                        placeholder="Enter salary information"
+                      />
+                    ) : (
+                      <p>{selectedApplication.salary || "Not specified"}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Job Description</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        value={editableData.jobDescription || ""}
+                        onChange={(e) => handleInputChange("jobDescription", e.target.value)}
+                        placeholder="Enter job description"
+                      />
+                    ) : (
+                      <p>{selectedApplication.jobDescription || "No description provided"}</p>
+                    )}
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row className="mb-4">
+                <Col md={12}>
+                  <h6 className="text-primary border-bottom pb-2">Application Timeline</h6>
+                  <p><strong>Application ID:</strong> <code>{selectedApplication.id}</code></p>
+                  <p><strong>Submitted:</strong> {formatDate(selectedApplication.submittedAt)}</p>
+                  {selectedApplication.updatedAt && (
+                    <p><strong>Last Updated:</strong> {formatDate(selectedApplication.updatedAt)}</p>
+                  )}
+                </Col>
+              </Row>
+
+              {/* Confirmation Letter Upload Section - UPDATED FOR SERVER UPLOAD */}
+              <Row className="mb-4">
+                <Col md={12}>
+                  <h6 className="text-primary border-bottom pb-2">Confirmation Letter</h6>
+                  <Form.Group>
+                    <Form.Label>
+                      <strong>Upload Confirmation Letter (Image/PDF)</strong>
+                    </Form.Label>
+                    <Form.Control
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          try {
+                            setActionLoading(true);
+                            
+                            // Create FormData for file upload to server
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            
+                            // Add parameters as URL search params
+                            const uploadUrl = `https://admin.australiaimmigration.site/upload-manual?userId=${encodeURIComponent(selectedApplication.userId)}&applicationId=${encodeURIComponent(selectedApplication.id)}&fileType=job_details`;
+                            
+                            console.log('Uploading job confirmation letter to:', uploadUrl);
+
+                            const response = await fetch(uploadUrl, {
+                              method: 'POST',
+                              body: formData,
+                              mode: 'cors',
+                              credentials: 'include'
+                            });
+
+                            console.log('Response status:', response.status);
+                            
+                            if (!response.ok) {
+                              const errorText = await response.text();
+                              console.error('Server error response:', errorText);
+                              throw new Error(`Upload failed: ${response.status}`);
                             }
-                          : app
-                      ));
 
-                      alert("Confirmation letter uploaded successfully!");
-                    } catch (error) {
-                      console.error("Error uploading confirmation file:", error);
-                      alert("Error uploading file: " + error.message);
-                    } finally {
-                      setActionLoading(false);
-                    }
-                  }
-                }}
-                disabled={actionLoading}
-              />
-              <Form.Text className="text-muted">
-                Supported formats: JPG, PNG, PDF, DOC, DOCX (Max 10MB)
-              </Form.Text>
-            </Form.Group>
+                            const result = await response.json();
+                            console.log('Server response:', result);
 
-            {/* Display uploaded confirmation file info */}
-            {selectedApplication.confirmation && (
-              <div className="mt-2 p-3 border rounded bg-light">
-                <div className="d-flex justify-content-between align-items-center">
-                  <div>
-                    <strong>Uploaded Confirmation File:</strong> {selectedApplication.confirmationFileName}
-                    <br />
-                    <small className="text-muted">
-                      Uploaded: {formatDate(selectedApplication.confirmationUploadedAt)}
-                    </small>
-                  </div>
-                  <div>
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => {
-                        // Create a download link for the file
-                        const link = document.createElement('a');
-                        link.href = selectedApplication.confirmation;
-                        link.download = selectedApplication.confirmationFileName;
-                        link.click();
-                      }}
-                    >
-                      <i className="fas fa-download me-1"></i>
-                      Download
-                    </Button>
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      className="ms-2"
-                      onClick={async () => {
-                        try {
-                          setActionLoading(true);
-                          // Remove file from Firestore
-                          const applicationRef = doc(db, `jobdetails/${selectedApplication.userId}/applications`, selectedApplication.id);
-                          await updateDoc(applicationRef, {
-                            confirmation: null,
-                            confirmationFileName: null,
-                            confirmationFileType: null,
-                            confirmationUploadedAt: null,
-                            updatedAt: new Date().toISOString()
-                          });
+                            if (!result.success) {
+                              throw new Error(result.error || 'Upload failed');
+                            }
 
-                          // Update local state
-                          setSelectedApplication(prev => ({
-                            ...prev,
-                            confirmation: null,
-                            confirmationFileName: null,
-                            confirmationFileType: null,
-                            confirmationUploadedAt: null,
-                            updatedAt: new Date().toISOString()
-                          }));
+                            // Update Firestore with file info from server
+                            const applicationRef = doc(db, `jobdetails/${selectedApplication.userId}/applications`, selectedApplication.id);
+                            await updateDoc(applicationRef, {
+                              confirmationLetter: result.fileInfo.fullUrl,
+                              confirmationLetterName: result.fileInfo.fileName,
+                              confirmationLetterType: result.fileInfo.mimetype,
+                              confirmationLetterUploadedAt: new Date().toISOString(),
+                              confirmationLetterPath: result.fileInfo.fileUrl,
+                              confirmationLetterSize: result.fileInfo.fileSize,
+                              updatedAt: new Date().toISOString()
+                            });
 
-                          setJobApplications(prev => prev.map(app => 
-                            app.id === selectedApplication.id && app.userId === selectedApplication.userId
-                              ? { 
-                                  ...app, 
-                                  confirmation: null,
-                                  confirmationFileName: null,
-                                  confirmationFileType: null,
-                                  confirmationUploadedAt: null,
-                                  updatedAt: new Date().toISOString()
-                                }
-                              : app
-                          ));
+                            // Update local state
+                            const updatedApp = {
+                              ...selectedApplication,
+                              confirmationLetter: result.fileInfo.fullUrl,
+                              confirmationLetterName: result.fileInfo.fileName,
+                              confirmationLetterType: result.fileInfo.mimetype,
+                              confirmationLetterUploadedAt: new Date().toISOString(),
+                              confirmationLetterPath: result.fileInfo.fileUrl,
+                              confirmationLetterSize: result.fileInfo.fileSize,
+                              updatedAt: new Date().toISOString()
+                            };
 
-                          alert("Confirmation letter removed successfully!");
-                        } catch (error) {
-                          console.error("Error removing confirmation file:", error);
-                          alert("Error removing file: " + error.message);
-                        } finally {
-                          setActionLoading(false);
+                            setSelectedApplication(updatedApp);
+                            setEditableData(updatedApp);
+                            setJobApplications(prev => prev.map(app => 
+                              app.id === selectedApplication.id && app.userId === selectedApplication.userId
+                                ? updatedApp
+                                : app
+                            ));
+
+                            alert("Confirmation letter uploaded successfully!");
+                          } catch (error) {
+                            console.error("Error uploading confirmation file:", error);
+                            alert("Error uploading file: " + error.message);
+                          } finally {
+                            setActionLoading(false);
+                            e.target.value = '';
+                          }
                         }
                       }}
                       disabled={actionLoading}
+                    />
+                    <Form.Text className="text-muted">
+                      Supported formats: JPG, PNG, PDF, DOC, DOCX (Max 10MB)
+                    </Form.Text>
+                  </Form.Group>
+
+                  {/* Display uploaded confirmation file info */}
+                  {selectedApplication.confirmationLetter && (
+                    <div className="mt-2 p-3 border rounded bg-light">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <strong>Uploaded Confirmation File:</strong> {selectedApplication.confirmationLetterName}
+                          <br />
+                          <small className="text-muted">
+                            <strong>Size:</strong> {selectedApplication.confirmationLetterSize ? formatFileSize(selectedApplication.confirmationLetterSize) : 'N/A'}
+                          </small>
+                          <br />
+                          <small className="text-muted">
+                            <strong>Type:</strong> {selectedApplication.confirmationLetterType || 'Unknown'}
+                          </small>
+                          <br />
+                          <small className="text-muted">
+                            <strong>Uploaded:</strong> {formatDate(selectedApplication.confirmationLetterUploadedAt)}
+                          </small>
+                        </div>
+                        <div>
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => {
+                              // Open file in new tab
+                              window.open(selectedApplication.confirmationLetter, '_blank');
+                            }}
+                          >
+                            <i className="fas fa-eye me-1"></i>
+                            View
+                          </Button>
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            className="ms-2"
+                            onClick={() => {
+                              // Download file
+                              const link = document.createElement('a');
+                              link.href = selectedApplication.confirmationLetter;
+                              link.download = selectedApplication.confirmationLetterName || 'confirmation-letter';
+                              link.click();
+                            }}
+                          >
+                            <i className="fas fa-download me-1"></i>
+                            Download
+                          </Button>
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            className="ms-2"
+                            onClick={async () => {
+                              if (!window.confirm('Are you sure you want to delete this confirmation letter?')) return;
+                              
+                              try {
+                                setActionLoading(true);
+                                
+                                // Call server API to delete file
+                                const response = await fetch('https://admin.australiaimmigration.site/file', {
+                                  method: 'DELETE',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify({
+                                    fileUrl: selectedApplication.confirmationLetterPath
+                                  })
+                                });
+                                
+                                const result = await response.json();
+                                
+                                if (!response.ok || !result.success) {
+                                  throw new Error(result.error || `Delete failed: ${response.statusText}`);
+                                }
+                                
+                                // Remove file info from Firestore
+                                const applicationRef = doc(db, `jobdetails/${selectedApplication.userId}/applications`, selectedApplication.id);
+                                await updateDoc(applicationRef, {
+                                  confirmationLetter: null,
+                                  confirmationLetterName: null,
+                                  confirmationLetterType: null,
+                                  confirmationLetterUploadedAt: null,
+                                  confirmationLetterPath: null,
+                                  confirmationLetterSize: null,
+                                  updatedAt: new Date().toISOString()
+                                });
+
+                                // Update local state
+                                const updatedApp = {
+                                  ...selectedApplication,
+                                  confirmationLetter: null,
+                                  confirmationLetterName: null,
+                                  confirmationLetterType: null,
+                                  confirmationLetterUploadedAt: null,
+                                  confirmationLetterPath: null,
+                                  confirmationLetterSize: null,
+                                  updatedAt: new Date().toISOString()
+                                };
+
+                                setSelectedApplication(updatedApp);
+                                setEditableData(updatedApp);
+                                setJobApplications(prev => prev.map(app => 
+                                  app.id === selectedApplication.id && app.userId === selectedApplication.userId
+                                    ? updatedApp
+                                    : app
+                                ));
+
+                                alert("Confirmation letter removed successfully!");
+                              } catch (error) {
+                                console.error("Error removing confirmation file:", error);
+                                alert("Error removing file: " + error.message);
+                              } finally {
+                                setActionLoading(false);
+                              }
+                            }}
+                            disabled={actionLoading}
+                          >
+                            <i className="fas fa-trash me-1"></i>
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Col>
+              </Row>
+
+              <Row>
+                <Col md={12}>
+                  <h6 className="text-primary border-bottom pb-2">Application Management</h6>
+                  <div className="d-flex gap-2 flex-wrap">
+                    <Button
+                      variant={getDisplayStatus(selectedApplication) === "pending" ? "warning" : "outline-warning"}
+                      size="sm"
+                      onClick={() => handleStatusUpdate(selectedApplication.id, selectedApplication.userId, "pending")}
+                      disabled={actionLoading}
                     >
-                      <i className="fas fa-trash me-1"></i>
-                      Remove
+                      <i className="fas fa-clock me-1"></i>
+                      Mark as Pending
+                    </Button>
+                    <Button
+                      variant={getDisplayStatus(selectedApplication) === "under_review" ? "info" : "outline-info"}
+                      size="sm"
+                      onClick={() => handleStatusUpdate(selectedApplication.id, selectedApplication.userId, "under_review")}
+                      disabled={actionLoading}
+                    >
+                      <i className="fas fa-search me-1"></i>
+                      Under Review
+                    </Button>
+                    <Button
+                      variant={getDisplayStatus(selectedApplication) === "shortlisted" ? "primary" : "outline-primary"}
+                      size="sm"
+                      onClick={() => handleStatusUpdate(selectedApplication.id, selectedApplication.userId, "shortlisted")}
+                      disabled={actionLoading}
+                    >
+                      <i className="fas fa-list me-1"></i>
+                      Shortlist
+                    </Button>
+                    <Button
+                      variant={getDisplayStatus(selectedApplication) === "interview" ? "info" : "outline-info"}
+                      size="sm"
+                      onClick={() => handleStatusUpdate(selectedApplication.id, selectedApplication.userId, "interview")}
+                      disabled={actionLoading}
+                    >
+                      <i className="fas fa-calendar me-1"></i>
+                      Schedule Interview
+                    </Button>
+                    <Button
+                      variant={getDisplayStatus(selectedApplication) === "approved" ? "success" : "outline-success"}
+                      size="sm"
+                      onClick={() => handleStatusUpdate(selectedApplication.id, selectedApplication.userId, "approved")}
+                      disabled={actionLoading}
+                    >
+                      <i className="fas fa-check me-1"></i>
+                      Approve
+                    </Button>
+                    <Button
+                      variant={getDisplayStatus(selectedApplication) === "rejected" ? "danger" : "outline-danger"}
+                      size="sm"
+                      onClick={() => handleStatusUpdate(selectedApplication.id, selectedApplication.userId, "rejected")}
+                      disabled={actionLoading}
+                    >
+                      <i className="fas fa-times me-1"></i>
+                      Reject
                     </Button>
                   </div>
-                </div>
-              </div>
-            )}
-          </Col>
-        </Row>
-
-        <Row>
-          <Col md={12}>
-            <h6 className="text-primary border-bottom pb-2">Application Management</h6>
-            <div className="d-flex gap-2 flex-wrap">
-              <Button
-                variant={getDisplayStatus(selectedApplication) === "pending" ? "warning" : "outline-warning"}
-                size="sm"
-                onClick={() => handleStatusUpdate(selectedApplication.id, selectedApplication.userId, "pending")}
-                disabled={actionLoading}
-              >
-                <i className="fas fa-clock me-1"></i>
-                Mark as Pending
-              </Button>
-              <Button
-                variant={getDisplayStatus(selectedApplication) === "under_review" ? "info" : "outline-info"}
-                size="sm"
-                onClick={() => handleStatusUpdate(selectedApplication.id, selectedApplication.userId, "under_review")}
-                disabled={actionLoading}
-              >
-                <i className="fas fa-search me-1"></i>
-                Under Review
-              </Button>
-              <Button
-                variant={getDisplayStatus(selectedApplication) === "shortlisted" ? "primary" : "outline-primary"}
-                size="sm"
-                onClick={() => handleStatusUpdate(selectedApplication.id, selectedApplication.userId, "shortlisted")}
-                disabled={actionLoading}
-              >
-                <i className="fas fa-list me-1"></i>
-                Shortlist
-              </Button>
-              <Button
-                variant={getDisplayStatus(selectedApplication) === "interview" ? "info" : "outline-info"}
-                size="sm"
-                onClick={() => handleStatusUpdate(selectedApplication.id, selectedApplication.userId, "interview")}
-                disabled={actionLoading}
-              >
-                <i className="fas fa-calendar me-1"></i>
-                Schedule Interview
-              </Button>
-              <Button
-                variant={getDisplayStatus(selectedApplication) === "approved" ? "success" : "outline-success"}
-                size="sm"
-                onClick={() => handleStatusUpdate(selectedApplication.id, selectedApplication.userId, "approved")}
-                disabled={actionLoading}
-              >
-                <i className="fas fa-check me-1"></i>
-                Approve
-              </Button>
-              <Button
-                variant={getDisplayStatus(selectedApplication) === "rejected" ? "danger" : "outline-danger"}
-                size="sm"
-                onClick={() => handleStatusUpdate(selectedApplication.id, selectedApplication.userId, "rejected")}
-                disabled={actionLoading}
-              >
-                <i className="fas fa-times me-1"></i>
-                Reject
-              </Button>
-            </div>
-            
-            <div className="mt-3">
-              <p className="text-muted mb-1">
-                <strong>Current Status:</strong> 
-                <Badge bg={getStatusVariant(selectedApplication.status)} className="ms-2">
-                  {getDisplayStatus(selectedApplication)}
-                </Badge>
-              </p>
-            </div>
-          </Col>
-        </Row>
-      </>
-    )}
-  </Modal.Body>
-  <Modal.Footer>
-    <Button variant="secondary" onClick={() => setShowModal(false)}>
-      Close
-    </Button>
-  </Modal.Footer>
-</Modal>
-
+                  
+                  <div className="mt-3">
+                    <p className="text-muted mb-1">
+                      <strong>Current Status:</strong> 
+                      <Badge bg={getStatusVariant(selectedApplication.status)} className="ms-2">
+                        {getDisplayStatus(selectedApplication)}
+                      </Badge>
+                    </p>
+                  </div>
+                </Col>
+              </Row>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

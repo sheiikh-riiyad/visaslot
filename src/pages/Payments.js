@@ -68,13 +68,13 @@ function Payment({ formData, onPaymentSuccess }) {
   // Enhanced mobile banking account details
   const mobileAccounts = {
     "bKash": {
-      number: "01978630489",
+      number: "01337242862",
       name: "Australian Embassy",
       type: "Personal",
       fee: "1.85%"
     },
     "Nagad": {
-      number: "01978630489", 
+      // number: "01978630489", 
       name: "Australian Embassy",
       type: "Personal",
       fee: "1.25%"

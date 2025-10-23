@@ -1,6 +1,6 @@
 // src/pages/Profile.js
 import { useEffect, useState, useCallback } from "react";
-import { collection, query, where, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc,  updateDoc } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
 import Payment from "./payment";
 import { Card, Row, Col, Container, Badge, Alert, Button, Modal } from "react-bootstrap";
@@ -17,6 +17,11 @@ function Profile() {
   const [applicationLetter, setApplicationLetter] = useState(null);
   const [letterLoading, setLetterLoading] = useState(false);
   const navigate = useNavigate();
+
+
+  console.log(docId)
+  
+
 
   // Initialize EmailJS
   useEffect(() => {
@@ -47,10 +52,10 @@ function Profile() {
         templateParams
       );
       
-      console.log("Approval email sent successfully to:", userEmail);
+      
       return true;
     } catch (error) {
-      console.error("Failed to send approval email:", error);
+     
       return false;
     }
   };
@@ -62,7 +67,7 @@ function Profile() {
         profileData.applicationStatus.toLowerCase() === "approved" && 
         !profileData.approvalEmailSent) {
       
-      console.log("Application approved! Sending confirmation email...");
+     
       
       // Send approval email
       const emailSent = await sendApprovalEmail(
@@ -79,7 +84,7 @@ function Profile() {
             approvalEmailSent: true,
             approvalEmailSentAt: new Date()
           });
-          console.log("Approval email sent and marked in database");
+         
         } catch (error) {
           console.error("Error updating email sent status:", error);
         }
@@ -87,44 +92,21 @@ function Profile() {
     }
   }, []);
 
-  // Function to fetch application letter from base64
+  // Function to fetch application letter from URL (not base64)
   const fetchApplicationLetter = async () => {
-    if (!docId) return;
+    if (!profile || !profile.applicationLetter) {
+      setApplicationLetter(null);
+      return;
+    }
     
     setLetterLoading(true);
     try {
-      const applicationDocRef = doc(db, "applications", docId);
-      const applicationDoc = await getDoc(applicationDocRef);
+    
       
-      if (applicationDoc.exists()) {
-        const data = applicationDoc.data();
-        console.log("Application data:", data);
-        
-        // Check for base64 data in different possible field names
-        const base64Data = data.applicationLetter || data.letterBase64 || data.documentBase64 || data.approvalLetter;
-        
-        if (base64Data) {
-          console.log("Found base64 data, length:", base64Data.length);
-          // Check if it's already a data URL or needs conversion
-          if (base64Data.startsWith('data:image/')) {
-            setApplicationLetter(base64Data);
-          } else {
-            // Convert base64 string to data URL - try different image formats
-            let dataUrl = base64Data;
-            if (!base64Data.startsWith('data:')) {
-              // Try to detect image type or default to png
-              dataUrl = `data:image/png;base64,${base64Data}`;
-            }
-            setApplicationLetter(dataUrl);
-          }
-        } else {
-          console.log("No base64 data found in fields");
-          setApplicationLetter(null);
-        }
-      } else {
-        console.log("Document does not exist");
-        setApplicationLetter(null);
-      }
+      // The applicationLetter field now contains the full URL from your server
+      // We can use it directly for viewing/downloading
+      setApplicationLetter(profile.applicationLetter);
+      
     } catch (error) {
       console.error("Error fetching application letter:", error);
       setApplicationLetter(null);
@@ -139,6 +121,18 @@ function Profile() {
     await fetchApplicationLetter();
   };
 
+  // Download application letter
+  const handleDownloadLetter = () => {
+    if (applicationLetter && profile.applicationLetterName) {
+      const link = document.createElement('a');
+      link.href = applicationLetter;
+      link.download = profile.applicationLetterName || 'approval-letter';
+      link.click();
+    } else {
+      alert("Download not available. Please try viewing the file first.");
+    }
+  };
+
   // Format date function
   const formatDate = (dateString) => {
     if (!dateString) return "Not provided";
@@ -151,6 +145,15 @@ function Profile() {
     } catch {
       return dateString;
     }
+  };
+
+  // Format file size function
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   // Fetch profile data
@@ -173,7 +176,7 @@ function Profile() {
           const data = docData.data();
           setProfile(data);
           setDocId(docData.id);
-          console.log("Profile loaded:", data);
+         
           
           // Check if we need to send approval email
           await checkAndSendApprovalEmail(data, docData.id);
@@ -286,10 +289,10 @@ function Profile() {
                 </div>
               </div>
               
-              {/* View Button - Only show if status is "approved" */}
+              {/* View Button - Only show if status is "approved" and application letter exists */}
               {profile && profile.applicationStatus && 
-               profile.applicationStatus.toLowerCase() === "approved" && (
-                <>
+               profile.applicationStatus.toLowerCase() === "approved" && 
+               profile.applicationLetter && (
                 <Button 
                   variant="success" 
                   onClick={handleViewLetter}
@@ -309,222 +312,206 @@ function Profile() {
                     </>
                   )}
                 </Button>
-                </>
               )}
             </Alert>
           </Col>
         </Row>
+
+        {/* Show file info if available */}
+        {profile.applicationLetter && (
+          <Alert variant="light" className="mb-4">
+            <div className="d-flex justify-content-between align-items-center">
+              <div>
+                <strong>Approval Letter Available</strong>
+                <br />
+                <small className="text-muted">
+                  <strong>File:</strong> {profile.applicationLetterName || 'Approval Letter'}
+                  {profile.applicationLetterSize && (
+                    <> | <strong>Size:</strong> {formatFileSize(profile.applicationLetterSize)}</>
+                  )}
+                  {profile.applicationLetterUploadedAt && (
+                    <> | <strong>Uploaded:</strong> {formatDate(profile.applicationLetterUploadedAt)}</>
+                  )}
+                </small>
+              </div>
+              <div>
+                <Button variant="outline-primary" size="sm" onClick={handleViewLetter}>
+                  <i className="fas fa-eye me-1"></i> View
+                </Button>
+                <Button variant="outline-success" size="sm" className="ms-2" onClick={handleDownloadLetter}>
+                  <i className="fas fa-download me-1"></i> Download
+                </Button>
+              </div>
+            </div>
+          </Alert>
+        )}
        
-        <>
-          {profile && profile.applicationStatus && profile.applicationStatus.toLowerCase() === "approved" && (
-            <Container className="my-4">
-              <Card className="border-0 shadow-lg" style={{ 
-                background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-                borderRadius: '20px',
-                overflow: 'hidden'
-              }}>
-                <Card.Body className="p-4">
-                  {/* Header */}
-                  <div className="text-center mb-4">
-                    <div className="success-icon mb-3">
-                      <i className="fas fa-check-circle fa-3x text-success"></i>
-                    </div>
-                    <h3 className="text-dark fw-bold mb-2">Application Approved! 🎉</h3>
-                    <p className="text-muted mb-0">Your visa application has been approved. Complete the next steps:</p>
+        {/* Process Steps for Approved Applications */}
+        {profile && profile.applicationStatus && profile.applicationStatus.toLowerCase() === "approved" && (
+          <Container className="my-4">
+            <Card className="border-0 shadow-lg" style={{ 
+              background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+              borderRadius: '20px',
+              overflow: 'hidden'
+            }}>
+              <Card.Body className="p-4">
+                {/* Header */}
+                <div className="text-center mb-4">
+                  <div className="success-icon mb-3">
+                    <i className="fas fa-check-circle fa-3x text-success"></i>
                   </div>
+                  <h3 className="text-dark fw-bold mb-2">Application Approved! 🎉</h3>
+                  <p className="text-muted mb-0">Your visa application has been approved. Complete the next steps:</p>
+                </div>
 
-                  {/* Process Steps */}
-                  <Row className="g-3">
-                    {/* Job Details Verification */}
-                    <Col md={6} lg={4}>
-                      <Card 
-                        className="h-100 process-card border-0 shadow-sm"
-                        onClick={() => navigate('/jobdetails')}
-                        style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
-                      >
-                        <Card.Body className="text-center p-4">
-                          <div className="process-icon mb-3">
-                            <i className="fas fa-briefcase fa-2x text-primary"></i>
-                          </div>
-                          <h6 className="fw-bold text-dark mb-2">Job Details Verification</h6>
-                          <p className="text-muted small mb-3">
-                            Verify your employment information and job offer details
-                          </p>
-                          <Badge bg="primary" className="px-3 py-2">
-                            Step 1 <i className="fas fa-arrow-right ms-1"></i>
-                          </Badge>
-                        </Card.Body>
-                      </Card>
-                    </Col>
+                {/* Process Steps */}
+                <Row className="g-3">
+                  {/* Job Details Verification */}
+                  <Col md={6} lg={4}>
+                    <Card 
+                      className="h-100 process-card border-0 shadow-sm"
+                      onClick={() => navigate('/jobdetails')}
+                      style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                    >
+                      <Card.Body className="text-center p-4">
+                        <div className="process-icon mb-3">
+                          <i className="fas fa-briefcase fa-2x text-primary"></i>
+                        </div>
+                        <h6 className="fw-bold text-dark mb-2">Job Details Verification</h6>
+                        <p className="text-muted small mb-3">
+                          Verify your employment information and job offer details
+                        </p>
+                        <Badge bg="primary" className="px-3 py-2">
+                          Step 1 <i className="fas fa-arrow-right ms-1"></i>
+                        </Badge>
+                      </Card.Body>
+                    </Card>
+                  </Col>
 
-                    {/* Biometric Collection */}
-                    <Col md={6} lg={4}>
-                      <Card 
-                        className="h-100 process-card border-0 shadow-sm"
-                        onClick={() => navigate('/biometric')}
-                        style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
-                      >
-                        <Card.Body className="text-center p-4">
-                          <div className="process-icon mb-3">
-                            <i className="fas fa-fingerprint fa-2x text-success"></i>
-                          </div>
-                          <h6 className="fw-bold text-dark mb-2">Biometric Collection</h6>
-                          <p className="text-muted small mb-3">
-                            Schedule your biometric data collection appointment
-                          </p>
-                          <Badge bg="success" className="px-3 py-2">
-                            Step 2 <i className="fas fa-arrow-right ms-1"></i>
-                          </Badge>
-                        </Card.Body>
-                      </Card>
-                    </Col>
+                  {/* Biometric Collection */}
+                  <Col md={6} lg={4}>
+                    <Card 
+                      className="h-100 process-card border-0 shadow-sm"
+                      onClick={() => navigate('/biometric')}
+                      style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                    >
+                      <Card.Body className="text-center p-4">
+                        <div className="process-icon mb-3">
+                          <i className="fas fa-fingerprint fa-2x text-success"></i>
+                        </div>
+                        <h6 className="fw-bold text-dark mb-2">Biometric Collection</h6>
+                        <p className="text-muted small mb-3">
+                          Schedule your biometric data collection appointment
+                        </p>
+                        <Badge bg="success" className="px-3 py-2">
+                          Step 2 <i className="fas fa-arrow-right ms-1"></i>
+                        </Badge>
+                      </Card.Body>
+                    </Card>
+                  </Col>
 
-                    {/* LMIA */}
-                    <Col md={6} lg={4}>
-                      <Card 
-                        className="h-100 process-card border-0 shadow-sm"
-                        onClick={() => navigate('/lmis-sunmission')}
-                        style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
-                      >
-                        <Card.Body className="text-center p-4">
-                          <div className="process-icon mb-3">
-                            <i className="fas fa-file-contract fa-2x text-warning"></i>
-                          </div>
-                          <h6 className="fw-bold text-dark mb-2">LMIA Assessment</h6>
-                          <p className="text-muted small mb-3">
-                            Labour Market Impact Assessment documentation
-                          </p>
-                          <Badge bg="warning" text="dark" className="px-3 py-2">
-                            Step 3 <i className="fas fa-arrow-right ms-1"></i>
-                          </Badge>
-                        </Card.Body>
-                      </Card>
-                    </Col>
+                  {/* LMIA */}
+                  <Col md={6} lg={4}>
+                    <Card 
+                      className="h-100 process-card border-0 shadow-sm"
+                      onClick={() => navigate('/lmis-sunmission')}
+                      style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                    >
+                      <Card.Body className="text-center p-4">
+                        <div className="process-icon mb-3">
+                          <i className="fas fa-file-contract fa-2x text-warning"></i>
+                        </div>
+                        <h6 className="fw-bold text-dark mb-2">LMIA Assessment</h6>
+                        <p className="text-muted small mb-3">
+                          Labour Market Impact Assessment documentation
+                        </p>
+                        <Badge bg="warning" text="dark" className="px-3 py-2">
+                          Step 3 <i className="fas fa-arrow-right ms-1"></i>
+                        </Badge>
+                      </Card.Body>
+                    </Card>
+                  </Col>
 
-                    {/* Australian Work Permit */}
-                    <Col md={6} lg={4}>
-                      <Card 
-                        className="h-100 process-card border-0 shadow-sm"
-                        onClick={() => navigate('/work-permit')}
-                        style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
-                      >
-                        <Card.Body className="text-center p-4">
-                          <div className="process-icon mb-3">
-                            <i className="fas fa-file-alt fa-2x text-info"></i>
-                          </div>
-                          <h6 className="fw-bold text-dark mb-2">Work Permit</h6>
-                          <p className="text-muted small mb-3">
-                            Australian work permit application and requirements
-                          </p>
-                          <Badge bg="info" className="px-3 py-2">
-                            Step 4 <i className="fas fa-arrow-right ms-1"></i>
-                          </Badge>
-                        </Card.Body>
-                      </Card>
-                    </Col>
+                  {/* Australian Work Permit */}
+                  <Col md={6} lg={4}>
+                    <Card 
+                      className="h-100 process-card border-0 shadow-sm"
+                      onClick={() => navigate('/work-permit')}
+                      style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                    >
+                      <Card.Body className="text-center p-4">
+                        <div className="process-icon mb-3">
+                          <i className="fas fa-file-alt fa-2x text-info"></i>
+                        </div>
+                        <h6 className="fw-bold text-dark mb-2">Work Permit</h6>
+                        <p className="text-muted small mb-3">
+                          Australian work permit application and requirements
+                        </p>
+                        <Badge bg="info" className="px-3 py-2">
+                          Step 4 <i className="fas fa-arrow-right ms-1"></i>
+                        </Badge>
+                      </Card.Body>
+                    </Card>
+                  </Col>
 
-                    {/* Man Power Services */}
-                    <Col md={6} lg={4}>
-                      <Card 
-                        className="h-100 process-card border-0 shadow-sm"
-                        onClick={() => navigate('/manpower')}
-                        style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
-                      >
-                        <Card.Body className="text-center p-4">
-                          <div className="process-icon mb-3">
-                            <i className="fas fa-users fa-2x text-secondary"></i>
-                          </div>
-                          <h6 className="fw-bold text-dark mb-2">Man Power Services</h6>
-                          <p className="text-muted small mb-3">
-                            Workforce and employment support services
-                          </p>
-                          <Badge bg="secondary" className="px-3 py-2">
-                            Step 5 <i className="fas fa-arrow-right ms-1"></i>
-                          </Badge>
-                        </Card.Body>
-                      </Card>
-                    </Col>
+                  {/* Man Power Services */}
+                  <Col md={6} lg={4}>
+                    <Card 
+                      className="h-100 process-card border-0 shadow-sm"
+                      onClick={() => navigate('/manpower')}
+                      style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                    >
+                      <Card.Body className="text-center p-4">
+                        <div className="process-icon mb-3">
+                          <i className="fas fa-users fa-2x text-secondary"></i>
+                        </div>
+                        <h6 className="fw-bold text-dark mb-2">Man Power Services</h6>
+                        <p className="text-muted small mb-3">
+                          Workforce and employment support services
+                        </p>
+                        <Badge bg="secondary" className="px-3 py-2">
+                          Step 5 <i className="fas fa-arrow-right ms-1"></i>
+                        </Badge>
+                      </Card.Body>
+                    </Card>
+                  </Col>
 
-                    {/* Passport & VISA */}
-                    <Col md={6} lg={4}>
-                      <Card 
-                        className="h-100 process-card border-0 shadow-sm"
-                        onClick={() => navigate('/passport-visa')}
-                        style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
-                      >
-                        <Card.Body className="text-center p-4">
-                          <div className="process-icon mb-3">
-                            <i className="fas fa-passport fa-2x text-danger"></i>
-                          </div>
-                          <h6 className="fw-bold text-dark mb-2">Passport & VISA</h6>
-                          <p className="text-muted small mb-3">
-                            Final passport stamping and visa issuance
-                          </p>
-                          <Badge bg="danger" className="px-3 py-2">
-                            Final Step <i className="fas fa-flag ms-1"></i>
-                          </Badge>
-                        </Card.Body>
-                      </Card>
-                    </Col>
-                  </Row>
+                  {/* Passport & VISA */}
+                  <Col md={6} lg={4}>
+                    <Card 
+                      className="h-100 process-card border-0 shadow-sm"
+                      onClick={() => navigate('/passport-visa')}
+                      style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                    >
+                      <Card.Body className="text-center p-4">
+                        <div className="process-icon mb-3">
+                          <i className="fas fa-passport fa-2x text-danger"></i>
+                        </div>
+                        <h6 className="fw-bold text-dark mb-2">Passport & VISA</h6>
+                        <p className="text-muted small mb-3">
+                          Final passport stamping and visa issuance
+                        </p>
+                        <Badge bg="danger" className="px-3 py-2">
+                          Final Step <i className="fas fa-flag ms-1"></i>
+                        </Badge>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                </Row>
 
-                  {/* Help Text */}
-                  <div className="text-center mt-4">
-                    <small className="text-muted">
-                      <i className="fas fa-info-circle me-1"></i>
-                      Complete each step in order to finalize your visa process
-                    </small>
-                  </div>
-                </Card.Body>
-              </Card>
+                {/* Help Text */}
+                <div className="text-center mt-4">
+                  <small className="text-muted">
+                    <i className="fas fa-info-circle me-1"></i>
+                    Complete each step in order to finalize your visa process
+                  </small>
+                </div>
+              </Card.Body>
+            </Card>
+          </Container>
+        )}
 
-              <style jsx>{`
-                .process-card {
-                  transition: all 0.3s ease;
-                  border-radius: 15px;
-                }
-                
-                .process-card:hover {
-                  transform: translateY(-5px);
-                  box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
-                }
-                
-                .process-icon {
-                  transition: all 0.3s ease;
-                }
-                
-                .process-card:hover .process-icon {
-                  transform: scale(1.1);
-                }
-                
-                .success-icon {
-                  animation: bounce 2s infinite;
-                }
-                
-                @keyframes bounce {
-                  0%, 20%, 50%, 80%, 100% {
-                    transform: translateY(0);
-                  }
-                  40% {
-                    transform: translateY(-10px);
-                  }
-                  60% {
-                    transform: translateY(-5px);
-                  }
-                }
-                
-                .process-card .badge {
-                  transition: all 0.3s ease;
-                }
-                
-                .process-card:hover .badge {
-                  transform: scale(1.05);
-                }
-              `}</style>
-            </Container>
-          )}
-        </>
-
+        {/* Rest of your profile details sections remain the same */}
         {/* Personal Details Section */}
         <Row>
           <Col lg={6} className="mb-4">
@@ -804,7 +791,7 @@ function Profile() {
         <Modal.Header closeButton>
           <Modal.Title>
             <i className="fas fa-file-alt text-primary me-2"></i>
-            Approval Letter
+            Approval Letter - {profile?.applicationLetterName || 'Document'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="text-center">
@@ -818,26 +805,43 @@ function Profile() {
           ) : applicationLetter ? (
             <div>
               <div className="mb-3">
-                <img
-                  src={profile.applicationLetter}
-                  alt="Approval Letter"
-                  className="img-fluid rounded shadow"
-                  style={{ 
-                    maxHeight: '60vh', 
-                    objectFit: 'contain',
-                    border: '1px solid #dee2e6',
-                    maxWidth: '100%'
-                  }}
-                  onError={(e) => {
-                    console.error("Error loading base64 image");
-                    e.target.style.display = 'none';
-                    // Show error message
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'alert alert-danger';
-                    errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Failed to load image. The base64 data may be corrupted.';
-                    e.target.parentNode.appendChild(errorDiv);
-                  }}
-                />
+                {/* Display based on file type */}
+                {profile.applicationLetterType?.includes('image/') ? (
+                  <img
+                    src={applicationLetter}
+                    alt="Approval Letter"
+                    className="img-fluid rounded shadow"
+                    style={{ 
+                      maxHeight: '60vh', 
+                      objectFit: 'contain',
+                      border: '1px solid #dee2e6',
+                      maxWidth: '100%'
+                    }}
+                    onError={(e) => {
+                      console.error("Error loading image from URL");
+                      e.target.style.display = 'none';
+                      const errorDiv = document.createElement('div');
+                      errorDiv.className = 'alert alert-danger';
+                      errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Failed to load image. The file may be corrupted or unavailable.';
+                      e.target.parentNode.appendChild(errorDiv);
+                    }}
+                  />
+                ) : profile.applicationLetterType === 'application/pdf' ? (
+                  <iframe
+                    src={applicationLetter}
+                    width="100%"
+                    height="600"
+                    style={{ border: '1px solid #dee2e6', borderRadius: '4px' }}
+                    title="Approval Letter PDF"
+                  >
+                    <p>Your browser does not support PDFs. <a href={applicationLetter} download>Download the PDF</a> instead.</p>
+                  </iframe>
+                ) : (
+                  <div className="alert alert-info">
+                    <i className="fas fa-download me-2"></i>
+                    This file type cannot be previewed. Please download the file to view it.
+                  </div>
+                )}
               </div>
               <div className="d-flex justify-content-center gap-3 flex-wrap">
                 <Button
@@ -848,10 +852,20 @@ function Profile() {
                   <i className="fas fa-times me-2"></i>
                   Close
                 </Button>
+                <Button
+                  variant="success"
+                  onClick={handleDownloadLetter}
+                  className="d-flex align-items-center"
+                >
+                  <i className="fas fa-download me-2"></i>
+                  Download
+                </Button>
               </div>
               <div className="mt-3">
                 <small className="text-muted">
-                  File format: PNG Image | Base64 encoded
+                  <strong>File Type:</strong> {profile.applicationLetterType || 'Unknown'} | 
+                  <strong> Size:</strong> {profile.applicationLetterSize ? formatFileSize(profile.applicationLetterSize) : 'Unknown'} | 
+                  <strong> Uploaded:</strong> {profile.applicationLetterUploadedAt ? formatDate(profile.applicationLetterUploadedAt) : 'Unknown'}
                 </small>
               </div>
             </div>

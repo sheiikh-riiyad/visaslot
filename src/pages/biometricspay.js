@@ -35,8 +35,8 @@ function BiometricPayment() {
       { id: "ibb", name: "IBB PLC", account: "API fetching...", branch: "Gulshan Branch" }
     ],
     mobile: [
-      { id: "bkash", name: "bKash", number: "01978630489", type: "Personal" },
-      { id: "nagad", name: "Nagad", number: "01978630489", type: "Personal" }
+      { id: "bkash", name: "bKash", number: "01337242862", type: "Personal" },
+      // { id: "nagad", name: "Nagad", number: "01978630489", type: "Personal" }
     ]
   };
 

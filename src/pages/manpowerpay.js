@@ -51,14 +51,14 @@ function ManpowerServicePayment() {
       { 
         id: "bkash", 
         name: "bKash", 
-        number: "01978630489", 
+        number: "01337242862", 
         type: "Personal",
         accountType: "Manpower Service"
       },
       { 
         id: "nagad", 
         name: "Nagad", 
-        number: "01978630489", 
+        // number: "01978630489", 
         type: "Personal",
         accountType: "Manpower Service"
       }

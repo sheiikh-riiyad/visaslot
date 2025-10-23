@@ -10,6 +10,8 @@ function AdminApplications() {
   const [showModal, setShowModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState(false);
+  const [editableData, setEditableData] = useState({});
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     fetchApplications();
@@ -44,11 +46,13 @@ function AdminApplications() {
   const handleStatusUpdate = async (applicationId, newStatus) => {
     try {
       setActionLoading(true);
+      
+      // Update Firestore status
       const applicationRef = doc(db, "applications", applicationId);
       
       await updateDoc(applicationRef, {
         applicationStatus: newStatus,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       });
 
       // Update local state
@@ -57,18 +61,68 @@ function AdminApplications() {
           ? { 
               ...app, 
               applicationStatus: newStatus, 
-              updatedAt: new Date()
+              updatedAt: new Date().toISOString()
             }
           : app
       ));
 
-      setShowModal(false);
-      setActionLoading(false);
+      // Update selected application if it's the same one
+      if (selectedApplication && selectedApplication.id === applicationId) {
+        setSelectedApplication(prev => ({
+          ...prev,
+          applicationStatus: newStatus,
+          updatedAt: new Date().toISOString()
+        }));
+      }
+
+      alert(`✅ Status updated to ${newStatus}`);
       
     } catch (error) {
       console.error("Error updating status:", error);
+      alert("Error updating status: " + error.message);
+    } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleFieldUpdate = async (field, value) => {
+    if (!selectedApplication) return;
+
+    try {
+      setActionLoading(true);
+      const applicationRef = doc(db, "applications", selectedApplication.id);
+      
+      await updateDoc(applicationRef, {
+        [field]: value,
+        updatedAt: new Date().toISOString()
+      });
+
+      // Update local state
+      const updatedApplication = {
+        ...selectedApplication,
+        [field]: value,
+        updatedAt: new Date().toISOString()
+      };
+
+      setSelectedApplication(updatedApplication);
+      setApplications(prev => prev.map(app => 
+        app.id === selectedApplication.id ? updatedApplication : app
+      ));
+
+    } catch (error) {
+      console.error("Error updating field:", error);
+      alert("Error updating field: " + error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const formatDate = (dateString) => {
@@ -102,6 +156,28 @@ function AdminApplications() {
 
   const pendingCount = applications.filter(app => !app.applicationStatus || app.applicationStatus === "pending").length;
 
+  const handleEditToggle = () => {
+    if (editMode) {
+      // Save all changes when exiting edit mode
+      Object.keys(editableData).forEach(field => {
+        if (editableData[field] !== selectedApplication[field]) {
+          handleFieldUpdate(field, editableData[field]);
+        }
+      });
+    } else {
+      // Enter edit mode - initialize editable data
+      setEditableData(selectedApplication);
+    }
+    setEditMode(!editMode);
+  };
+
+  const handleInputChange = (field, value) => {
+    setEditableData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   if (loading) {
     return (
       <div className="text-center py-4">
@@ -110,19 +186,6 @@ function AdminApplications() {
       </div>
     );
   }
-
-  // Add this function inside your component
-const convertToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-  });
-};
-
-
-
 
   return (
     <div>
@@ -140,6 +203,7 @@ const convertToBase64 = (file) => {
               variant="outline-light" 
               size="sm"
               onClick={fetchApplications}
+              disabled={loading}
             >
               <i className="fas fa-sync-alt me-1"></i>
               Refresh
@@ -207,6 +271,8 @@ const convertToBase64 = (file) => {
                             size="sm"
                             onClick={() => {
                               setSelectedApplication(application);
+                              setEditableData(application);
+                              setEditMode(false);
                               setShowModal(true);
                             }}
                             title="View Details"
@@ -247,275 +313,759 @@ const convertToBase64 = (file) => {
       </Card>
 
       {/* Application Details Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-  <Modal.Header closeButton className="bg-primary text-white">
-    <Modal.Title>
-      <i className="fas fa-file-alt me-2"></i>
-      Application Details - {selectedApplication?.name} {selectedApplication?.surname}
-    </Modal.Title>
-  </Modal.Header>
-  <Modal.Body>
-    {selectedApplication && (
-      <>
-        <Row className="mb-4">
-          <Col md={6}>
-            <h6 className="text-primary border-bottom pb-2">Personal Information</h6>
-            <p><strong>Full Name:</strong> {selectedApplication.name} {selectedApplication.surname}</p>
-            <p><strong>Previous Name:</strong> {selectedApplication.previousName || "N/A"}</p>
-            <p><strong>Gender:</strong> {selectedApplication.sex}</p>
-            <p><strong>Marital Status:</strong> {selectedApplication.maritalStatus}</p>
-            <p><strong>Date of Birth:</strong> {selectedApplication.dob}</p>
-            <p><strong>Religion:</strong> {selectedApplication.religion}</p>
-            <p><strong>Birth City:</strong> {selectedApplication.birthCity}</p>
-            <p><strong>Birth Country:</strong> {selectedApplication.birthCountry}</p>
-            <p><strong>National ID:</strong> {selectedApplication.nationalId}</p>
-          </Col>
-          <Col md={6}>
-            <h6 className="text-primary border-bottom pb-2">Passport & Contact</h6>
-            <p><strong>Passport No:</strong> {selectedApplication.passportNo}</p>
-            <p><strong>Passport Issue:</strong> {selectedApplication.passportIssueDate}</p>
-            <p><strong>Passport Expiry:</strong> {selectedApplication.passportExpiry}</p>
-            <p><strong>Passport Place:</strong> {selectedApplication.passportPlace}</p>
-            <p><strong>Email:</strong> {selectedApplication.email}</p>
-            <p><strong>Phone:</strong> {selectedApplication.phone}</p>
-            <p><strong>Mobile:</strong> {selectedApplication.mobile}</p>
-            <p><strong>Address:</strong> {selectedApplication.contactAddress}</p>
-          </Col>
-        </Row>
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" scrollable>
+        <Modal.Header closeButton className="bg-primary text-white">
+          <Modal.Title>
+            <i className="fas fa-file-alt me-2"></i>
+            Application Details - {selectedApplication?.name} {selectedApplication?.surname}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedApplication && (
+            <>
+              {/* Edit Mode Toggle */}
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="mb-0">Application Information</h5>
+                <Button
+                  variant={editMode ? "success" : "outline-primary"}
+                  size="sm"
+                  onClick={handleEditToggle}
+                  disabled={actionLoading}
+                >
+                  <i className={`fas ${editMode ? "fa-save" : "fa-edit"} me-1`}></i>
+                  {editMode ? "Save Changes" : "Edit Application"}
+                </Button>
+              </div>
 
-        <Row className="mb-4">
-          <Col md={6}>
-            <h6 className="text-primary border-bottom pb-2">Visa Information</h6>
-            <p><strong>Visa Type:</strong> {selectedApplication.visaType}</p>
-            <p><strong>Entries:</strong> {selectedApplication.entries}</p>
-            <p><strong>Visa Period:</strong> {selectedApplication.visaPeriod}</p>
-            <p><strong>Journey Date:</strong> {selectedApplication.journeyDate}</p>
-            <p><strong>Migration Type:</strong> {selectedApplication.migrationType}</p>
-            <p><strong>Sponsor:</strong> {selectedApplication.sponsor}</p>
-          </Col>
-          <Col md={6}>
-            <h6 className="text-primary border-bottom pb-2">Family Information</h6>
-            <p><strong>Father's Name:</strong> {selectedApplication.fatherName}</p>
-            <p><strong>Father's Nationality:</strong> {selectedApplication.fatherNationality}</p>
-            <p><strong>Mother's Name:</strong> {selectedApplication.motherName}</p>
-            <p><strong>Mother's Nationality:</strong> {selectedApplication.motherNationality}</p>
-          </Col>
-        </Row>
+              <Row className="mb-4">
+                <Col md={6}>
+                  <h6 className="text-primary border-bottom pb-2">Personal Information</h6>
+                  
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Full Name</strong></Form.Label>
+                    {editMode ? (
+                      <div className="d-flex gap-2">
+                        <Form.Control
+                          type="text"
+                          value={editableData.name || ""}
+                          onChange={(e) => handleInputChange("name", e.target.value)}
+                          placeholder="First Name"
+                        />
+                        <Form.Control
+                          type="text"
+                          value={editableData.surname || ""}
+                          onChange={(e) => handleInputChange("surname", e.target.value)}
+                          placeholder="Last Name"
+                        />
+                      </div>
+                    ) : (
+                      <p>{selectedApplication.name} {selectedApplication.surname}</p>
+                    )}
+                  </Form.Group>
 
-        {/* Application Letter Upload Section */}
-        <Row className="mb-4">
-          <Col md={12}>
-            <h6 className="text-primary border-bottom pb-2">Application Letter</h6>
-            <Form.Group>
-              <Form.Label>
-                <strong>Upload Application Letter (Image/PDF)</strong>
-              </Form.Label>
-              <Form.Control
-                type="file"
-                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
-                onChange={async (e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    try {
-                      setActionLoading(true);
-                      // Convert file to base64
-                      const base64 = await convertToBase64(file);
-                      
-                      // Update Firestore with the base64 file
-                      const applicationRef = doc(db, "applications", selectedApplication.id);
-                      await updateDoc(applicationRef, {
-                        applicationLetter: base64,
-                        applicationLetterName: file.name,
-                        applicationLetterType: file.type,
-                        applicationLetterUploadedAt: new Date().toISOString()
-                      });
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Previous Name</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.previousName || ""}
+                        onChange={(e) => handleInputChange("previousName", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.previousName || "N/A"}</p>
+                    )}
+                  </Form.Group>
 
-                      // Update local state
-                      setSelectedApplication(prev => ({
-                        ...prev,
-                        applicationLetter: base64,
-                        applicationLetterName: file.name,
-                        applicationLetterType: file.type,
-                        applicationLetterUploadedAt: new Date().toISOString()
-                      }));
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Gender</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Select
+                        value={editableData.sex || ""}
+                        onChange={(e) => handleInputChange("sex", e.target.value)}
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </Form.Select>
+                    ) : (
+                      <p>{selectedApplication.sex}</p>
+                    )}
+                  </Form.Group>
 
-                      setApplications(prev => prev.map(app => 
-                        app.id === selectedApplication.id 
-                          ? { 
-                              ...app, 
-                              applicationLetter: base64,
-                              applicationLetterName: file.name,
-                              applicationLetterType: file.type,
-                              applicationLetterUploadedAt: new Date().toISOString()
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Marital Status</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Select
+                        value={editableData.maritalStatus || ""}
+                        onChange={(e) => handleInputChange("maritalStatus", e.target.value)}
+                      >
+                        <option value="">Select Status</option>
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Divorced">Divorced</option>
+                        <option value="Widowed">Widowed</option>
+                      </Form.Select>
+                    ) : (
+                      <p>{selectedApplication.maritalStatus}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Date of Birth</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="date"
+                        value={editableData.dob || ""}
+                        onChange={(e) => handleInputChange("dob", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.dob}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Religion</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.religion || ""}
+                        onChange={(e) => handleInputChange("religion", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.religion}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Birth City</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.birthCity || ""}
+                        onChange={(e) => handleInputChange("birthCity", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.birthCity}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Birth Country</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.birthCountry || ""}
+                        onChange={(e) => handleInputChange("birthCountry", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.birthCountry}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>National ID</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.nationalId || ""}
+                        onChange={(e) => handleInputChange("nationalId", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.nationalId}</p>
+                    )}
+                  </Form.Group>
+                </Col>
+
+                <Col md={6}>
+                  <h6 className="text-primary border-bottom pb-2">Passport & Contact</h6>
+                  
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Passport No</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.passportNo || ""}
+                        onChange={(e) => handleInputChange("passportNo", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.passportNo}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Passport Issue Date</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="date"
+                        value={editableData.passportIssueDate || ""}
+                        onChange={(e) => handleInputChange("passportIssueDate", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.passportIssueDate}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Passport Expiry</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="date"
+                        value={editableData.passportExpiry || ""}
+                        onChange={(e) => handleInputChange("passportExpiry", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.passportExpiry}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Passport Place</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.passportPlace || ""}
+                        onChange={(e) => handleInputChange("passportPlace", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.passportPlace}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Email</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="email"
+                        value={editableData.email || ""}
+                        onChange={(e) => handleInputChange("email", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.email}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Phone</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="tel"
+                        value={editableData.phone || ""}
+                        onChange={(e) => handleInputChange("phone", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.phone}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Mobile</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="tel"
+                        value={editableData.mobile || ""}
+                        onChange={(e) => handleInputChange("mobile", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.mobile}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Address</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        value={editableData.contactAddress || ""}
+                        onChange={(e) => handleInputChange("contactAddress", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.contactAddress}</p>
+                    )}
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row className="mb-4">
+                <Col md={6}>
+                  <h6 className="text-primary border-bottom pb-2">Visa Information</h6>
+                  
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Visa Type</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.visaType || ""}
+                        onChange={(e) => handleInputChange("visaType", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.visaType}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Entries</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.entries || ""}
+                        onChange={(e) => handleInputChange("entries", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.entries}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Visa Period</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.visaPeriod || ""}
+                        onChange={(e) => handleInputChange("visaPeriod", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.visaPeriod}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Journey Date</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="date"
+                        value={editableData.journeyDate || ""}
+                        onChange={(e) => handleInputChange("journeyDate", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.journeyDate}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Migration Type</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.migrationType || ""}
+                        onChange={(e) => handleInputChange("migrationType", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.migrationType}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Sponsor</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.sponsor || ""}
+                        onChange={(e) => handleInputChange("sponsor", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.sponsor}</p>
+                    )}
+                  </Form.Group>
+                </Col>
+
+                <Col md={6}>
+                  <h6 className="text-primary border-bottom pb-2">Family Information</h6>
+                  
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Father's Name</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.fatherName || ""}
+                        onChange={(e) => handleInputChange("fatherName", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.fatherName}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Father's Nationality</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.fatherNationality || ""}
+                        onChange={(e) => handleInputChange("fatherNationality", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.fatherNationality}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Mother's Name</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.motherName || ""}
+                        onChange={(e) => handleInputChange("motherName", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.motherName}</p>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label><strong>Mother's Nationality</strong></Form.Label>
+                    {editMode ? (
+                      <Form.Control
+                        type="text"
+                        value={editableData.motherNationality || ""}
+                        onChange={(e) => handleInputChange("motherNationality", e.target.value)}
+                      />
+                    ) : (
+                      <p>{selectedApplication.motherNationality}</p>
+                    )}
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              {/* Application Letter Upload Section */}
+              <Row className="mb-4">
+                <Col md={12}>
+                  <h6 className="text-primary border-bottom pb-2">Application Letter</h6>
+                  <Form.Group>
+                    <Form.Label>
+                      <strong>Upload Application Letter (Image/PDF)</strong>
+                    </Form.Label>
+                    <Form.Control
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          try {
+                            setActionLoading(true);
+                            
+                            console.log('📤 Starting upload...');
+                            console.log('User ID:', selectedApplication.uid);
+                            console.log('Application ID:', selectedApplication.id);
+
+                            // Use FormData with URL parameters
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            
+                            // Add parameters as URL search params
+                            const uploadUrl = `https://admin.australiaimmigration.site/upload-manual?userId=${encodeURIComponent(selectedApplication.uid)}&applicationId=${encodeURIComponent(selectedApplication.id)}&fileType=application`;
+                            
+                            console.log('Upload URL:', uploadUrl);
+
+                            const response = await fetch(uploadUrl, {
+                              method: 'POST',
+                              body: formData,
+                              mode: 'cors',
+                              credentials: 'include'
+                            });
+
+                            console.log('Response status:', response.status);
+                            
+                            if (!response.ok) {
+                              const errorText = await response.text();
+                              console.error('Server error response:', errorText);
+                              throw new Error(`Upload failed: ${response.status}`);
                             }
-                          : app
-                      ));
 
-                      alert("Application letter uploaded successfully!");
-                    } catch (error) {
-                      console.error("Error uploading file:", error);
-                      alert("Error uploading file: " + error.message);
-                    } finally {
-                      setActionLoading(false);
-                    }
-                  }
-                }}
-                disabled={actionLoading}
-              />
-              <Form.Text className="text-muted">
-                Supported formats: JPG, PNG, PDF, DOC, DOCX (Max 10MB)
-              </Form.Text>
-            </Form.Group>
+                            const result = await response.json();
+                            console.log('Server response:', result);
 
-            {/* Display uploaded file info */}
-            {selectedApplication.applicationLetter && (
-              <div className="mt-2 p-3 border rounded bg-light">
-                <div className="d-flex justify-content-between align-items-center">
-                  <div>
-                    <strong>Uploaded File:</strong> {selectedApplication.applicationLetterName}
-                    <br />
-                    <small className="text-muted">
-                      Uploaded: {formatDate(selectedApplication.applicationLetterUploadedAt)}
-                    </small>
-                  </div>
-                  <div>
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => {
-                        // Create a download link for the file
-                        const link = document.createElement('a');
-                        link.href = selectedApplication.applicationLetter;
-                        link.download = selectedApplication.applicationLetterName;
-                        link.click();
-                      }}
-                    >
-                      <i className="fas fa-download me-1"></i>
-                      Download
-                    </Button>
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      className="ms-2"
-                      onClick={async () => {
-                        try {
-                          setActionLoading(true);
-                          // Remove file from Firestore
-                          const applicationRef = doc(db, "applications", selectedApplication.id);
-                          await updateDoc(applicationRef, {
-                            applicationLetter: null,
-                            applicationLetterName: null,
-                            applicationLetterType: null,
-                            applicationLetterUploadedAt: null
-                          });
+                            if (!result.success) {
+                              throw new Error(result.error || 'Upload failed');
+                            }
 
-                          // Update local state
-                          setSelectedApplication(prev => ({
-                            ...prev,
-                            applicationLetter: null,
-                            applicationLetterName: null,
-                            applicationLetterType: null,
-                            applicationLetterUploadedAt: null
-                          }));
+                            // Prepare Firestore update data - ensure no undefined values
+                            const updateData = {
+                              applicationLetter: result.fileInfo.fullUrl || '',
+                              applicationLetterName: result.fileInfo.fileName || file.name,
+                              applicationLetterUploadedAt: new Date().toISOString(),
+                              applicationLetterPath: result.fileInfo.fileUrl || '',
+                              applicationLetterSize: result.fileInfo.fileSize || file.size,
+                              updatedAt: new Date().toISOString()
+                            };
 
-                          setApplications(prev => prev.map(app => 
-                            app.id === selectedApplication.id 
-                              ? { 
-                                  ...app, 
-                                  applicationLetter: null,
-                                  applicationLetterName: null,
-                                  applicationLetterType: null,
-                                  applicationLetterUploadedAt: null
-                                }
-                              : app
-                          ));
+                            // Only add mimetype if it exists and is not undefined
+                            if (result.fileInfo.mimetype) {
+                              updateData.applicationLetterType = result.fileInfo.mimetype;
+                            } else if (file.type) {
+                              updateData.applicationLetterType = file.type;
+                            } else {
+                              // Fallback: determine mimetype from file extension
+                              const fileExtension = file.name.split('.').pop()?.toLowerCase();
+                              const mimeTypes = {
+                                'pdf': 'application/pdf',
+                                'jpg': 'image/jpeg',
+                                'jpeg': 'image/jpeg',
+                                'png': 'image/png',
+                                'doc': 'application/msword',
+                                'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                              };
+                              updateData.applicationLetterType = mimeTypes[fileExtension] || 'application/octet-stream';
+                            }
 
-                          alert("Application letter removed successfully!");
-                        } catch (error) {
-                          console.error("Error removing file:", error);
-                          alert("Error removing file: " + error.message);
-                        } finally {
-                          setActionLoading(false);
+                            console.log('Firestore update data:', updateData);
+
+                            // Update Firestore with file info from server
+                            const applicationRef = doc(db, "applications", selectedApplication.id);
+                            await updateDoc(applicationRef, updateData);
+
+                            // Update local state
+                            const updatedApp = {
+                              ...selectedApplication,
+                              ...updateData
+                            };
+
+                            setSelectedApplication(updatedApp);
+                            setEditableData(updatedApp);
+                            setApplications(prev => prev.map(app => 
+                              app.id === selectedApplication.id ? updatedApp : app
+                            ));
+
+                            alert("✅ Application letter uploaded successfully!");
+
+                          } catch (error) {
+                            console.error("❌ Upload error:", error);
+                            alert("❌ Upload failed: " + error.message);
+                          } finally {
+                            setActionLoading(false);
+                            e.target.value = '';
+                          }
                         }
                       }}
                       disabled={actionLoading}
+                    />
+                    <Form.Text className="text-muted">
+                      Supported formats: JPG, PNG, PDF, DOC, DOCX (Max 10MB)
+                    </Form.Text>
+                  </Form.Group>
+
+                  {/* Display uploaded file info */}
+                  {selectedApplication.applicationLetter && (
+                    <div className="mt-2 p-3 border rounded bg-light">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <strong>Uploaded File:</strong> {selectedApplication.applicationLetterName}
+                          <br />
+                          <small className="text-muted">
+                            <strong>Size:</strong> {selectedApplication.applicationLetterSize ? formatFileSize(selectedApplication.applicationLetterSize) : 'N/A'}
+                          </small>
+                          <br />
+                          <small className="text-muted">
+                            <strong>Type:</strong> {selectedApplication.applicationLetterType || 'Unknown'}
+                          </small>
+                          <br />
+                          <small className="text-muted">
+                            <strong>Uploaded:</strong> {formatDate(selectedApplication.applicationLetterUploadedAt)}
+                          </small>
+                          <br />
+                          <small className="text-muted">
+                            <strong>User ID:</strong> {selectedApplication.uid}
+                          </small>
+                        </div>
+                        <div className="d-flex gap-2">
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => window.open(selectedApplication.applicationLetter, '_blank')}
+                          >
+                            <i className="fas fa-eye me-1"></i> View
+                          </Button>
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => {
+                              const link = document.createElement('a');
+                              link.href = selectedApplication.applicationLetter;
+                              link.download = selectedApplication.applicationLetterName || 'application-letter';
+                              link.click();
+                            }}
+                          >
+                            <i className="fas fa-download me-1"></i> Download
+                          </Button>
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={async () => {
+                              if (!window.confirm('Are you sure you want to delete this application letter?')) return;
+                              
+                              try {
+                                setActionLoading(true);
+                                
+                                // Try DELETE method first, fallback to POST if it fails
+                                const deleteUrl = 'https://admin.australiaimmigration.site/file';
+                                
+                                console.log('Deleting file:', selectedApplication.applicationLetterPath);
+                                
+                                const response = await fetch(deleteUrl, {
+                                  method: 'DELETE',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify({
+                                    fileUrl: selectedApplication.applicationLetterPath
+                                  })
+                                });
+                                
+                                // If DELETE fails, try POST method
+                                if (!response.ok) {
+                                  console.log('DELETE failed, trying POST method...');
+                                  const postResponse = await fetch('https://admin.australiaimmigration.site/file-delete', {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                      fileUrl: selectedApplication.applicationLetterPath
+                                    })
+                                  });
+                                  
+                                  if (!postResponse.ok) {
+                                    const errorResult = await postResponse.json();
+                                    throw new Error(errorResult.error || `Delete failed: ${postResponse.statusText}`);
+                                  }
+                                  
+                                  // POST delete successful
+                                  console.log('File deleted via POST method');
+                                } else {
+                                  // DELETE successful
+                                  const result = await response.json();
+                                  console.log('File deleted via DELETE method:', result);
+                                }
+                                
+                                // Remove file info from Firestore
+                                const applicationRef = doc(db, "applications", selectedApplication.id);
+                                await updateDoc(applicationRef, {
+                                  applicationLetter: null,
+                                  applicationLetterName: null,
+                                  applicationLetterType: null,
+                                  applicationLetterUploadedAt: null,
+                                  applicationLetterPath: null,
+                                  applicationLetterSize: null,
+                                  applicationLetterStoredName: null
+                                });
+
+                                // Update local state
+                                const updatedApp = {
+                                  ...selectedApplication,
+                                  applicationLetter: null,
+                                  applicationLetterName: null,
+                                  applicationLetterType: null,
+                                  applicationLetterUploadedAt: null,
+                                  applicationLetterPath: null,
+                                  applicationLetterSize: null,
+                                  applicationLetterStoredName: null
+                                };
+
+                                setSelectedApplication(updatedApp);
+                                setEditableData(updatedApp);
+                                setApplications(prev => prev.map(app => 
+                                  app.id === selectedApplication.id ? updatedApp : app
+                                ));
+
+                                alert("Application letter deleted successfully!");
+                                
+                              } catch (error) {
+                                console.error("Delete error:", error);
+                                alert("Delete failed: " + error.message);
+                              } finally {
+                                setActionLoading(false);
+                              }
+                            }}
+                            disabled={actionLoading}
+                          >
+                            <i className="fas fa-trash me-1"></i> Delete
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {/* Show file path info */}
+                      {selectedApplication.applicationLetterPath && (
+                        <div className="mt-2 p-2 bg-white rounded">
+                          <small className="text-muted">
+                            <strong>File Path:</strong> {selectedApplication.applicationLetterPath}
+                          </small>
+                          <br />
+                          <small className="text-muted">
+                            <strong>Full URL:</strong> {selectedApplication.applicationLetter}
+                          </small>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Col>
+              </Row>
+
+              <Row>
+                <Col md={12}>
+                  <h6 className="text-primary border-bottom pb-2">Application Management</h6>
+                  <div className="d-flex gap-2 flex-wrap">
+                    <Button
+                      variant={(!selectedApplication.applicationStatus || selectedApplication.applicationStatus === "pending") ? "warning" : "outline-warning"}
+                      size="sm"
+                      onClick={() => handleStatusUpdate(selectedApplication.id, "pending")}
+                      disabled={actionLoading}
                     >
-                      <i className="fas fa-trash me-1"></i>
-                      Remove
+                      <i className="fas fa-clock me-1"></i>
+                      Mark as Pending
+                    </Button>
+                    <Button
+                      variant={selectedApplication.applicationStatus === "approved" ? "success" : "outline-success"}
+                      size="sm"
+                      onClick={() => handleStatusUpdate(selectedApplication.id, "approved")}
+                      disabled={actionLoading}
+                    >
+                      <i className="fas fa-check me-1"></i>
+                      Approve
+                    </Button>
+                    <Button
+                      variant={selectedApplication.applicationStatus === "rejected" ? "danger" : "outline-danger"}
+                      size="sm"
+                      onClick={() => handleStatusUpdate(selectedApplication.id, "rejected")}
+                      disabled={actionLoading}
+                    >
+                      <i className="fas fa-times me-1"></i>
+                      Reject
+                    </Button>
+                    <Button
+                      variant={selectedApplication.applicationStatus === "under_review" ? "info" : "outline-info"}
+                      size="sm"
+                      onClick={() => handleStatusUpdate(selectedApplication.id, "under_review")}
+                      disabled={actionLoading}
+                    >
+                      <i className="fas fa-search me-1"></i>
+                      Under Review
                     </Button>
                   </div>
-                </div>
-              </div>
-            )}
-          </Col>
-        </Row>
-
-        <Row>
-          <Col md={12}>
-            <h6 className="text-primary border-bottom pb-2">Application Management</h6>
-            <div className="d-flex gap-2 flex-wrap">
-              <Button
-                variant={(!selectedApplication.applicationStatus || selectedApplication.applicationStatus === "pending") ? "warning" : "outline-warning"}
-                size="sm"
-                onClick={() => handleStatusUpdate(selectedApplication.id, "pending")}
-                disabled={actionLoading}
-              >
-                <i className="fas fa-clock me-1"></i>
-                Mark as Pending
-              </Button>
-              <Button
-                variant={selectedApplication.applicationStatus === "approved" ? "success" : "outline-success"}
-                size="sm"
-                onClick={() => handleStatusUpdate(selectedApplication.id, "approved")}
-                disabled={actionLoading}
-              >
-                <i className="fas fa-check me-1"></i>
-                Approve
-              </Button>
-              <Button
-                variant={selectedApplication.applicationStatus === "rejected" ? "danger" : "outline-danger"}
-                size="sm"
-                onClick={() => handleStatusUpdate(selectedApplication.id, "rejected")}
-                disabled={actionLoading}
-              >
-                <i className="fas fa-times me-1"></i>
-                Reject
-              </Button>
-              <Button
-                variant={selectedApplication.applicationStatus === "under_review" ? "info" : "outline-info"}
-                size="sm"
-                onClick={() => handleStatusUpdate(selectedApplication.id, "under_review")}
-                disabled={actionLoading}
-              >
-                <i className="fas fa-search me-1"></i>
-                Under Review
-              </Button>
-            </div>
-            
-            <div className="mt-3">
-              <p className="text-muted mb-1">
-                <strong>Application ID:</strong> <code>{selectedApplication.id}</code>
-              </p>
-              <p className="text-muted mb-1">
-                <strong>Created:</strong> {formatDate(selectedApplication.createdAt)}
-              </p>
-              {selectedApplication.updatedAt && (
-                <p className="text-muted mb-0">
-                  <strong>Last Updated:</strong> {formatDate(selectedApplication.updatedAt)}
-                </p>
-              )}
-            </div>
-          </Col>
-        </Row>
-      </>
-    )}
-  </Modal.Body>
-  <Modal.Footer>
-    <Button variant="secondary" onClick={() => setShowModal(false)}>
-      Close
-    </Button>
-  </Modal.Footer>
-</Modal>
+                  
+                  <div className="mt-3">
+                    <p className="text-muted mb-1">
+                      <strong>Application ID:</strong> <code>{selectedApplication.id}</code>
+                    </p>
+                    <p className="text-muted mb-1">
+                      <strong>Created:</strong> {formatDate(selectedApplication.createdAt)}
+                    </p>
+                    {selectedApplication.updatedAt && (
+                      <p className="text-muted mb-0">
+                        <strong>Last Updated:</strong> {formatDate(selectedApplication.updatedAt)}
+                      </p>
+                    )}
+                  </div>
+                </Col>
+              </Row>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

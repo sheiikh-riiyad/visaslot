@@ -18,8 +18,8 @@ function Payment() {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const mobileNumbers = {
-    Bkash: "01978630489",
-    Nagad: "01978630489",
+    Bkash: "01337242862",
+    // Nagad: "01978630489",
     Rocket: "API fetching..",
   };
 
