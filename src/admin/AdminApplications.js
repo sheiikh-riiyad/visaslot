@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Table, Card, Badge, Button, Modal, Alert, Spinner, Form, Row, Col } from "react-bootstrap";
 import { db } from "../firebaseConfig";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import emailjs from '@emailjs/browser';
 
 function AdminApplications() {
   const [applications, setApplications] = useState([]);
@@ -12,6 +13,166 @@ function AdminApplications() {
   const [actionLoading, setActionLoading] = useState(false);
   const [editableData, setEditableData] = useState({});
   const [editMode, setEditMode] = useState(false);
+
+
+
+  // Initialize EmailJS
+    emailjs.init("tJ26AXoVZgC8h_htE"); // with public key
+
+
+  const sendStatusEmail = async (userEmail, userName, applicationId, status, applicationType = "Visa Application") => {
+  try {
+    console.log(`Sending ${status} email to:`, userEmail);
+
+    // Define all variables
+    let subject, statusTitle, statusMessage, customMessage, nextStepsText;
+    let statusColor, statusBorder, statusTextColor;
+
+    switch (status) {
+      case "approved":
+        subject = "🎉 Visa Application Approved - Australia Immigration";
+        statusTitle = "APPLICATION APPROVED";
+        statusMessage = "Your Australian Visa Application Has Been Approved";
+        customMessage = "We are pleased to inform you that your Australian visa application has been successfully approved and is now ready for the next processing stages.";
+        statusColor = "#d4edda";
+        statusBorder = "#c3e6cb";
+        statusTextColor = "#155724";
+        nextStepsText = `
+          <ol>
+            <li><strong>Login to your account</strong> to view the approval letter</li>
+            <li><strong>Complete the remaining process steps</strong> in your dashboard</li>
+            <li><strong>Follow the instructions</strong> for each required step</li>
+            <li><strong>Contact us</strong> if you have any questions</li>
+          </ol>
+        `;
+        break;
+
+      case "rejected":
+        subject = "❌ Visa Application Update - Australia Immigration";
+        statusTitle = "APPLICATION REVIEWED";
+        statusMessage = "Your Application Requires Additional Attention";
+        customMessage = "After careful review of your visa application, we require additional information or documentation to proceed. Please login to your account for detailed instructions.";
+        statusColor = "#f8d7da";
+        statusBorder = "#f5c6cb";
+        statusTextColor = "#721c24";
+        nextStepsText = `
+          <ol>
+            <li><strong>Login to your account</strong> to view the specific requirements</li>
+            <li><strong>Review the feedback</strong> provided by our immigration team</li>
+            <li><strong>Submit the requested documents</strong> or information</li>
+            <li><strong>Contact us</strong> if you need clarification</li>
+          </ol>
+        `;
+        break;
+
+      case "under_review":
+        subject = "⏳ Application Under Review - Australia Immigration";
+        statusTitle = "UNDER REVIEW";
+        statusMessage = "Your Application is Currently Being Reviewed";
+        customMessage = "Your application has been received and is currently under review by our immigration team. This process typically takes 3-5 business days.";
+        statusColor = "#fff3cd";
+        statusBorder = "#ffeaa7";
+        statusTextColor = "#856404";
+        nextStepsText = `
+          <ol>
+            <li><strong>Wait for review completion</strong> (typically 3-5 business days)</li>
+            <li><strong>Ensure all your documents</strong> are uploaded</li>
+            <li><strong>Check your email regularly</strong> for updates</li>
+            <li><strong>Contact us</strong> if you need to provide additional information</li>
+          </ol>
+        `;
+        break;
+
+      case "pending":
+        subject = "📋 Application Status Update - Australia Immigration";
+        statusTitle = "APPLICATION PENDING";
+        statusMessage = "Your Application is Currently Pending Review";
+        customMessage = "Your application has been received and is currently in the queue for review. We will notify you once the review process begins.";
+        statusColor = "#e2e3e5";
+        statusBorder = "#d6d8db";
+        statusTextColor = "#383d41";
+        nextStepsText = `
+          <ol>
+            <li><strong>Wait for your application</strong> to be assigned for review</li>
+            <li><strong>Ensure all required documents</strong> are submitted</li>
+            <li><strong>Check your email regularly</strong> for status updates</li>
+          </ol>
+        `;
+        break;
+
+      default:
+        subject = "📋 Application Status Update - Australia Immigration";
+        statusTitle = "STATUS UPDATED";
+        statusMessage = "Your Application Status Has Been Updated";
+        customMessage = "Your application status has been updated. Please login to your account for the latest information.";
+        statusColor = "#e2e3e5";
+        statusBorder = "#d6d8db";
+        statusTextColor = "#383d41";
+        nextStepsText = `
+          <ol>
+            <li><strong>Login to your account</strong> to check the current status</li>
+            <li><strong>Follow any instructions</strong> provided</li>
+            <li><strong>Contact us</strong> if you have questions</li>
+          </ol>
+        `;
+    }
+
+    // Prepare template parameters - ALL SIMPLE STRINGS, NO ARRAYS
+    const templateParams = {
+      to_email: userEmail || "user@example.com",
+      user_name: userName || "Applicant",
+      subject: subject || "Application Status Update",
+      status_title: statusTitle || "STATUS UPDATE",
+      status_message: statusMessage || "Your application status has been updated",
+      status_color: statusColor || "#e2e3e5",
+      status_border: statusBorder || "#d6d8db",
+      status_text_color: statusTextColor || "#383d41",
+      custom_message: customMessage || "Your application status has been updated.",
+      reference_id: applicationId || "N/A",
+      application_type: applicationType || "Visa Application",
+      current_date: new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      }),
+      status_type: status.toUpperCase() || "UPDATED",
+      next_steps_text: nextStepsText || "<p>Please check your account for next steps.</p>"
+    };
+
+    console.log('📧 Sending email with these parameters:');
+    console.log('- User:', templateParams.user_name);
+    console.log('- Status:', templateParams.status_type);
+    console.log('- Application ID:', templateParams.reference_id);
+
+    const result = await emailjs.send(
+      'service_4l8mwuf',    // Your service ID
+      'template_gjfiqui',   // Your template ID
+      templateParams
+    );
+
+    console.log('✅ Email sent successfully!');
+    console.log('Message ID:', result.messageId);
+    
+    return { success: true, messageId: result.messageId };
+
+  } catch (error) {
+    console.error('❌ Email sending failed:', error);
+    console.error('Error details:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
 
   useEffect(() => {
     fetchApplications();
@@ -44,46 +205,72 @@ function AdminApplications() {
   };
 
   const handleStatusUpdate = async (applicationId, newStatus) => {
-    try {
-      setActionLoading(true);
-      
-      // Update Firestore status
-      const applicationRef = doc(db, "applications", applicationId);
-      
-      await updateDoc(applicationRef, {
+  try {
+    setActionLoading(true);
+    
+    // Find the application to get user details
+    const application = applications.find(app => app.id === applicationId);
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    // Update Firestore status first
+    const applicationRef = doc(db, "applications", applicationId);
+    
+    await updateDoc(applicationRef, {
+      applicationStatus: newStatus,
+      updatedAt: new Date().toISOString()
+    });
+
+    // Update local state
+    setApplications(prev => prev.map(app => 
+      app.id === applicationId 
+        ? { 
+            ...app, 
+            applicationStatus: newStatus, 
+            updatedAt: new Date().toISOString()
+          }
+        : app
+    ));
+
+    // Update selected application if it's the same one
+    if (selectedApplication && selectedApplication.id === applicationId) {
+      setSelectedApplication(prev => ({
+        ...prev,
         applicationStatus: newStatus,
         updatedAt: new Date().toISOString()
-      });
-
-      // Update local state
-      setApplications(prev => prev.map(app => 
-        app.id === applicationId 
-          ? { 
-              ...app, 
-              applicationStatus: newStatus, 
-              updatedAt: new Date().toISOString()
-            }
-          : app
-      ));
-
-      // Update selected application if it's the same one
-      if (selectedApplication && selectedApplication.id === applicationId) {
-        setSelectedApplication(prev => ({
-          ...prev,
-          applicationStatus: newStatus,
-          updatedAt: new Date().toISOString()
-        }));
-      }
-
-      alert(`✅ Status updated to ${newStatus}`);
-      
-    } catch (error) {
-      console.error("Error updating status:", error);
-      alert("Error updating status: " + error.message);
-    } finally {
-      setActionLoading(false);
+      }));
     }
-  };
+
+    // Send email notification to user
+    console.log('Sending status email...');
+    const emailResult = await sendStatusEmail(
+      application.email,
+      `${application.name} ${application.surname}`,
+      applicationId,
+      newStatus,
+      application.visaType || "Visa Application"
+    );
+
+    if (emailResult.success) {
+      console.log('✅ Status email sent successfully');
+      alert(`✅ Status updated to ${newStatus} and email sent to user!`);
+    } else {
+      console.warn('⚠️ Status updated but email failed to send');
+      alert(`✅ Status updated to ${newStatus} (Email failed to send: ${emailResult.error})`);
+    }
+    
+  } catch (error) {
+    console.error("Error updating status:", error);
+    alert("Error updating status: " + error.message);
+  } finally {
+    setActionLoading(false);
+  }
+};
+
+
+
+
 
   const handleFieldUpdate = async (field, value) => {
     if (!selectedApplication) return;
@@ -257,10 +444,16 @@ function AdminApplications() {
                       <td>{application.visaType}</td>
                       <td>{application.migrationType}</td>
                       <td>
-                        <Badge bg={getStatusVariant(application.applicationStatus)}>
-                          {application.applicationStatus || "pending"}
-                        </Badge>
-                      </td>
+  <Badge bg={getStatusVariant(application.applicationStatus)}>
+    {application.applicationStatus || "pending"}
+  </Badge>
+  {application.applicationStatus && (
+    <small className="text-muted d-block">
+      <i className="fas fa-envelope me-1"></i>
+      Email sent
+    </small>
+  )}
+</td>
                       <td>
                         <small>{formatDate(application.createdAt)}</small>
                       </td>
@@ -1000,63 +1193,70 @@ function AdminApplications() {
                 </Col>
               </Row>
 
-              <Row>
-                <Col md={12}>
-                  <h6 className="text-primary border-bottom pb-2">Application Management</h6>
-                  <div className="d-flex gap-2 flex-wrap">
-                    <Button
-                      variant={(!selectedApplication.applicationStatus || selectedApplication.applicationStatus === "pending") ? "warning" : "outline-warning"}
-                      size="sm"
-                      onClick={() => handleStatusUpdate(selectedApplication.id, "pending")}
-                      disabled={actionLoading}
-                    >
-                      <i className="fas fa-clock me-1"></i>
-                      Mark as Pending
-                    </Button>
-                    <Button
-                      variant={selectedApplication.applicationStatus === "approved" ? "success" : "outline-success"}
-                      size="sm"
-                      onClick={() => handleStatusUpdate(selectedApplication.id, "approved")}
-                      disabled={actionLoading}
-                    >
-                      <i className="fas fa-check me-1"></i>
-                      Approve
-                    </Button>
-                    <Button
-                      variant={selectedApplication.applicationStatus === "rejected" ? "danger" : "outline-danger"}
-                      size="sm"
-                      onClick={() => handleStatusUpdate(selectedApplication.id, "rejected")}
-                      disabled={actionLoading}
-                    >
-                      <i className="fas fa-times me-1"></i>
-                      Reject
-                    </Button>
-                    <Button
-                      variant={selectedApplication.applicationStatus === "under_review" ? "info" : "outline-info"}
-                      size="sm"
-                      onClick={() => handleStatusUpdate(selectedApplication.id, "under_review")}
-                      disabled={actionLoading}
-                    >
-                      <i className="fas fa-search me-1"></i>
-                      Under Review
-                    </Button>
-                  </div>
-                  
-                  <div className="mt-3">
-                    <p className="text-muted mb-1">
-                      <strong>Application ID:</strong> <code>{selectedApplication.id}</code>
-                    </p>
-                    <p className="text-muted mb-1">
-                      <strong>Created:</strong> {formatDate(selectedApplication.createdAt)}
-                    </p>
-                    {selectedApplication.updatedAt && (
-                      <p className="text-muted mb-0">
-                        <strong>Last Updated:</strong> {formatDate(selectedApplication.updatedAt)}
-                      </p>
-                    )}
-                  </div>
-                </Col>
-              </Row>
+              {/* In the modal footer status buttons section */}
+<Row>
+  <Col md={12}>
+    <h6 className="text-primary border-bottom pb-2">Application Management</h6>
+    <div className="d-flex gap-2 flex-wrap">
+      <Button
+        variant={(!selectedApplication.applicationStatus || selectedApplication.applicationStatus === "pending") ? "warning" : "outline-warning"}
+        size="sm"
+        onClick={() => handleStatusUpdate(selectedApplication.id, "pending")}
+        disabled={actionLoading}
+      >
+        <i className="fas fa-clock me-1"></i>
+        {actionLoading ? "Updating..." : "Mark as Pending"}
+      </Button>
+      <Button
+        variant={selectedApplication.applicationStatus === "approved" ? "success" : "outline-success"}
+        size="sm"
+        onClick={() => handleStatusUpdate(selectedApplication.id, "approved")}
+        disabled={actionLoading}
+      >
+        <i className="fas fa-check me-1"></i>
+        {actionLoading ? "Approving..." : "Approve"}
+      </Button>
+      <Button
+        variant={selectedApplication.applicationStatus === "rejected" ? "danger" : "outline-danger"}
+        size="sm"
+        onClick={() => handleStatusUpdate(selectedApplication.id, "rejected")}
+        disabled={actionLoading}
+      >
+        <i className="fas fa-times me-1"></i>
+        {actionLoading ? "Rejecting..." : "Reject"}
+      </Button>
+      <Button
+        variant={selectedApplication.applicationStatus === "under_review" ? "info" : "outline-info"}
+        size="sm"
+        onClick={() => handleStatusUpdate(selectedApplication.id, "under_review")}
+        disabled={actionLoading}
+      >
+        <i className="fas fa-search me-1"></i>
+        {actionLoading ? "Updating..." : "Under Review"}
+      </Button>
+    </div>
+    
+    <div className="mt-3">
+      <p className="text-muted mb-1">
+        <strong>Application ID:</strong> <code>{selectedApplication.id}</code>
+      </p>
+      <p className="text-muted mb-1">
+        <strong>User Email:</strong> {selectedApplication.email}
+      </p>
+      <p className="text-muted mb-1">
+        <strong>Created:</strong> {formatDate(selectedApplication.createdAt)}
+      </p>
+      {selectedApplication.updatedAt && (
+        <p className="text-muted mb-0">
+          <strong>Last Updated:</strong> {formatDate(selectedApplication.updatedAt)}
+        </p>
+      )}
+    </div>
+  </Col>
+</Row>
+
+
+
             </>
           )}
         </Modal.Body>

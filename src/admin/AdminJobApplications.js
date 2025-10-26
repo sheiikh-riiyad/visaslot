@@ -3,6 +3,7 @@ import { Table, Card, Badge, Button, Modal, Alert, Spinner, Form, Row, Col, Nav 
 import { db } from "../firebaseConfig";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import AdminJobPayments from "./AdminJobPayments";
+import emailjs from '@emailjs/browser';
 
 function AdminJobApplications() {
   const [jobApplications, setJobApplications] = useState([]);
@@ -15,6 +16,136 @@ function AdminJobApplications() {
   const [activeTab, setActiveTab] = useState("applications");
   const [editableData, setEditableData] = useState({});
   const [editMode, setEditMode] = useState(false);
+
+  // Initialize EmailJS
+  useEffect(() => {
+    emailjs.init("tJ26AXoVZgC8h_htE"); // Your public key
+  }, []);
+
+  // Email sending function for job applications
+  const sendJobStatusEmail = async (userEmail, userName, applicationId, status, company = "", jobCategory = "") => {
+    try {
+      console.log(`Sending ${status} job application email to:`, userEmail);
+
+      // Define all variables
+      let subject, statusTitle, statusMessage, customMessage;
+      let statusColor, statusBorder, statusTextColor;
+
+      switch (status) {
+        case "approved":
+          subject = "🎉 Job Application Approved - Australia Immigration";
+          statusTitle = "JOB APPLICATION APPROVED";
+          statusMessage = "Your Job Application Has Been Approved";
+          customMessage = `We are pleased to inform you that your job application for ${company} - ${jobCategory} has been successfully approved. The employer will contact you shortly for next steps.`;
+          statusColor = "#d4edda";
+          statusBorder = "#c3e6cb";
+          statusTextColor = "#155724";
+          break;
+
+        case "rejected":
+          subject = "❌ Job Application Update - Australia Immigration";
+          statusTitle = "APPLICATION REVIEWED";
+          statusMessage = "Your Job Application Requires Additional Attention";
+          customMessage = `After careful review of your job application for ${company} - ${jobCategory}, we require additional information or the position has been filled. Please login to your account for alternative opportunities.`;
+          statusColor = "#f8d7da";
+          statusBorder = "#f5c6cb";
+          statusTextColor = "#721c24";
+          break;
+
+        case "shortlisted":
+          subject = "⭐ Job Application Shortlisted - Australia Immigration";
+          statusTitle = "APPLICATION SHORTLISTED";
+          statusMessage = "Your Job Application Has Been Shortlisted";
+          customMessage = `Congratulations! Your job application for ${company} - ${jobCategory} has been shortlisted. The employer will contact you for the next interview round.`;
+          statusColor = "#d1ecf1";
+          statusBorder = "#bee5eb";
+          statusTextColor = "#0c5460";
+          break;
+
+        case "interview":
+          subject = "📅 Interview Scheduled - Australia Immigration";
+          statusTitle = "INTERVIEW SCHEDULED";
+          statusMessage = "Your Interview Has Been Scheduled";
+          customMessage = `Your job application for ${company} - ${jobCategory} has progressed to the interview stage. Please check your account for interview details and schedule.`;
+          statusColor = "#e2e3e5";
+          statusBorder = "#d6d8db";
+          statusTextColor = "#383d41";
+          break;
+
+        case "under_review":
+          subject = "⏳ Job Application Under Review - Australia Immigration";
+          statusTitle = "UNDER REVIEW";
+          statusMessage = "Your Job Application is Being Reviewed";
+          customMessage = `Your job application for ${company} - ${jobCategory} is currently under review by the employer. This process typically takes 3-5 business days.`;
+          statusColor = "#fff3cd";
+          statusBorder = "#ffeaa7";
+          statusTextColor = "#856404";
+          break;
+
+        case "pending":
+          subject = "📋 Job Application Received - Australia Immigration";
+          statusTitle = "APPLICATION RECEIVED";
+          statusMessage = "Your Job Application Has Been Received";
+          customMessage = `We have successfully received your job application for ${company} - ${jobCategory}. It is currently in the queue for review.`;
+          statusColor = "#e2e3e5";
+          statusBorder = "#d6d8db";
+          statusTextColor = "#383d41";
+          break;
+
+        default:
+          subject = "📋 Job Application Status Update - Australia Immigration";
+          statusTitle = "STATUS UPDATED";
+          statusMessage = "Your Job Application Status Has Been Updated";
+          customMessage = `Your job application status for ${company} - ${jobCategory} has been updated. Please login to your account for details.`;
+          statusColor = "#e2e3e5";
+          statusBorder = "#d6d8db";
+          statusTextColor = "#383d41";
+      }
+
+      // Prepare template parameters
+      const templateParams = {
+        to_email: userEmail || "user@example.com",
+        user_name: userName || "Applicant",
+        subject: subject || "Job Application Status Update",
+        status_title: statusTitle || "STATUS UPDATE",
+        status_message: statusMessage || "Your job application status has been updated",
+        status_color: statusColor || "#e2e3e5",
+        status_border: statusBorder || "#d6d8db",
+        status_text_color: statusTextColor || "#383d41",
+        custom_message: customMessage || "Your job application status has been updated.",
+        reference_id: applicationId || "N/A",
+        application_type: `Job Application - ${company} - ${jobCategory}`,
+        current_date: new Date().toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        status_type: status.toUpperCase() || "UPDATED"
+      };
+
+      console.log('📧 Sending job application email with parameters:');
+      console.log('- To:', templateParams.to_email);
+      console.log('- Name:', templateParams.user_name);
+      console.log('- Status:', templateParams.status_type);
+      console.log('- Company:', company);
+
+      const result = await emailjs.send(
+        'service_4l8mwuf',    // Your service ID
+        'template_gjfiqui',   // Your template ID
+        templateParams
+      );
+
+      console.log('✅ Job application email sent successfully!');
+      console.log('Message ID:', result.messageId);
+      
+      return { success: true, messageId: result.messageId };
+
+    } catch (error) {
+      console.error('❌ Job application email sending failed:', error);
+      console.error('Error details:', error);
+      return { success: false, error: error.message };
+    }
+  };
 
   useEffect(() => {
     fetchJobApplications();
@@ -67,6 +198,17 @@ function AdminJobApplications() {
   const handleStatusUpdate = async (applicationId, userId, newStatus) => {
     try {
       setActionLoading(true);
+      
+      // Find the application to get user details
+      const application = jobApplications.find(app => 
+        app.id === applicationId && app.userId === userId
+      );
+      
+      if (!application) {
+        throw new Error('Application not found');
+      }
+
+      // Update Firestore status first
       const applicationRef = doc(db, `jobdetails/${userId}/applications`, applicationId);
       
       await updateDoc(applicationRef, {
@@ -99,11 +241,29 @@ function AdminJobApplications() {
         }));
       }
 
-      setActionLoading(false);
+      // Send email notification to user
+      console.log('Sending job application status email...');
+      const emailResult = await sendJobStatusEmail(
+        application.userEmail,
+        application.name,
+        applicationId,
+        newStatus,
+        application.company || "Company",
+        application.jobCategory || "Position"
+      );
+
+      if (emailResult.success) {
+        console.log('✅ Job application status email sent successfully');
+        alert(`✅ Status updated to ${newStatus} and email sent to user!`);
+      } else {
+        console.warn('⚠️ Status updated but email failed to send');
+        alert(`✅ Status updated to ${newStatus} (Email failed to send: ${emailResult.error})`);
+      }
       
     } catch (error) {
       console.error("Error updating job application status:", error);
       alert("Error updating status: " + error.message);
+    } finally {
       setActionLoading(false);
     }
   };
@@ -354,7 +514,7 @@ function AdminJobApplications() {
                           <small>{formatDate(application.submittedAt)}</small>
                         </td>
                         <td>
-                          <div className="d-flex gap-1">
+                          <div className="d-flex gap-1 flex-wrap">
                             <Button
                               variant="outline-primary"
                               size="sm"
@@ -368,28 +528,62 @@ function AdminJobApplications() {
                             >
                               <i className="fas fa-eye"></i>
                             </Button>
-                            {(getDisplayStatus(application) === "pending" || getDisplayStatus(application) === "under_review") && (
-                              <>
-                                <Button
-                                  variant="outline-success"
-                                  size="sm"
-                                  onClick={() => handleStatusUpdate(application.id, application.userId, "approved")}
-                                  title="Approve Application"
-                                  disabled={actionLoading}
-                                >
-                                  <i className="fas fa-check"></i>
-                                </Button>
-                                <Button
-                                  variant="outline-danger"
-                                  size="sm"
-                                  onClick={() => handleStatusUpdate(application.id, application.userId, "rejected")}
-                                  title="Reject Application"
-                                  disabled={actionLoading}
-                                >
-                                  <i className="fas fa-times"></i>
-                                </Button>
-                              </>
-                            )}
+                            
+                            {/* All Status Buttons with Email Sending */}
+                            <Button
+                              variant="outline-warning"
+                              size="sm"
+                              onClick={() => handleStatusUpdate(application.id, application.userId, "pending")}
+                              title="Mark as Pending"
+                              disabled={actionLoading}
+                            >
+                              <i className="fas fa-clock"></i>
+                            </Button>
+                            <Button
+                              variant="outline-info"
+                              size="sm"
+                              onClick={() => handleStatusUpdate(application.id, application.userId, "under_review")}
+                              title="Mark as Under Review"
+                              disabled={actionLoading}
+                            >
+                              <i className="fas fa-search"></i>
+                            </Button>
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => handleStatusUpdate(application.id, application.userId, "shortlisted")}
+                              title="Shortlist Application"
+                              disabled={actionLoading}
+                            >
+                              <i className="fas fa-list"></i>
+                            </Button>
+                            <Button
+                              variant="outline-info"
+                              size="sm"
+                              onClick={() => handleStatusUpdate(application.id, application.userId, "interview")}
+                              title="Schedule Interview"
+                              disabled={actionLoading}
+                            >
+                              <i className="fas fa-calendar"></i>
+                            </Button>
+                            <Button
+                              variant="outline-success"
+                              size="sm"
+                              onClick={() => handleStatusUpdate(application.id, application.userId, "approved")}
+                              title="Approve Application"
+                              disabled={actionLoading}
+                            >
+                              <i className="fas fa-check"></i>
+                            </Button>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleStatusUpdate(application.id, application.userId, "rejected")}
+                              title="Reject Application"
+                              disabled={actionLoading}
+                            >
+                              <i className="fas fa-times"></i>
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -600,7 +794,7 @@ function AdminJobApplications() {
                 </Col>
               </Row>
 
-              {/* Confirmation Letter Upload Section - UPDATED FOR SERVER UPLOAD */}
+              {/* Confirmation Letter Upload Section */}
               <Row className="mb-4">
                 <Col md={12}>
                   <h6 className="text-primary border-bottom pb-2">Confirmation Letter</h6>
@@ -833,7 +1027,7 @@ function AdminJobApplications() {
                       disabled={actionLoading}
                     >
                       <i className="fas fa-clock me-1"></i>
-                      Mark as Pending
+                      {actionLoading ? "Updating..." : "Mark as Pending"}
                     </Button>
                     <Button
                       variant={getDisplayStatus(selectedApplication) === "under_review" ? "info" : "outline-info"}
@@ -842,7 +1036,7 @@ function AdminJobApplications() {
                       disabled={actionLoading}
                     >
                       <i className="fas fa-search me-1"></i>
-                      Under Review
+                      {actionLoading ? "Updating..." : "Under Review"}
                     </Button>
                     <Button
                       variant={getDisplayStatus(selectedApplication) === "shortlisted" ? "primary" : "outline-primary"}
@@ -851,7 +1045,7 @@ function AdminJobApplications() {
                       disabled={actionLoading}
                     >
                       <i className="fas fa-list me-1"></i>
-                      Shortlist
+                      {actionLoading ? "Updating..." : "Shortlist"}
                     </Button>
                     <Button
                       variant={getDisplayStatus(selectedApplication) === "interview" ? "info" : "outline-info"}
@@ -860,7 +1054,7 @@ function AdminJobApplications() {
                       disabled={actionLoading}
                     >
                       <i className="fas fa-calendar me-1"></i>
-                      Schedule Interview
+                      {actionLoading ? "Updating..." : "Schedule Interview"}
                     </Button>
                     <Button
                       variant={getDisplayStatus(selectedApplication) === "approved" ? "success" : "outline-success"}
@@ -869,7 +1063,7 @@ function AdminJobApplications() {
                       disabled={actionLoading}
                     >
                       <i className="fas fa-check me-1"></i>
-                      Approve
+                      {actionLoading ? "Approving..." : "Approve"}
                     </Button>
                     <Button
                       variant={getDisplayStatus(selectedApplication) === "rejected" ? "danger" : "outline-danger"}
@@ -878,7 +1072,7 @@ function AdminJobApplications() {
                       disabled={actionLoading}
                     >
                       <i className="fas fa-times me-1"></i>
-                      Reject
+                      {actionLoading ? "Rejecting..." : "Reject"}
                     </Button>
                   </div>
                   

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Table, Card, Badge, Button, Modal, Alert, Spinner, Form, Row, Col } from "react-bootstrap";
 import { db } from "../firebaseConfig";
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import { collection, getDocs, updateDoc, doc, getDoc } from "firebase/firestore";
+import emailjs from '@emailjs/browser';
 
 function AdminBiometricPayments() {
   const [payments, setPayments] = useState([]);
@@ -11,6 +12,13 @@ function AdminBiometricPayments() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // EmailJS configuration
+  const EMAILJS_CONFIG = {
+    serviceId: "service_4l8mwuf",
+    templateId: "template_gjfiqui",
+    publicKey: "tJ26AXoVZgC8h_htE"
+  };
 
   useEffect(() => {
     fetchPayments();
@@ -42,11 +50,183 @@ function AdminBiometricPayments() {
     }
   };
 
+  // Function to get user data from users collection
+  const getUserData = async (userId) => {
+    try {
+      const userDoc = await getDoc(doc(db, "users", userId));
+      if (userDoc.exists()) {
+        return userDoc.data();
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      return null;
+    }
+  };
+
+  // Function to get status-specific email content
+  const getStatusEmailContent = (status, userName, referenceId, applicationType) => {
+    const statusConfig = {
+      approved: {
+        status_title: "Payment Approved",
+        status_message: "Your biometric payment has been approved",
+        status_color: "#d4edda",
+        status_border: "#c3e6cb",
+        status_text_color: "#155724",
+        custom_message: `We are pleased to inform you that your biometric payment has been successfully approved. Your application is now moving forward in the processing queue.`,
+        next_steps_text: `
+          <p><strong>What happens next:</strong></p>
+          <ul>
+            <li>Your payment confirmation has been recorded</li>
+            <li>Your application will proceed to the next stage</li>
+            <li>You will receive further instructions via email</li>
+            <li>Please allow 3-5 business days for processing</li>
+          </ul>
+        `
+      },
+      rejected: {
+        status_title: "Payment Rejected",
+        status_message: "Your biometric payment has been rejected",
+        status_color: "#f8d7da",
+        status_border: "#f5c6cb",
+        status_text_color: "#721c24",
+        custom_message: `We regret to inform you that your biometric payment has been rejected. Please review the details and take appropriate action.`,
+        next_steps_text: `
+          <p><strong>Required actions:</strong></p>
+          <ul>
+            <li>Review your payment information</li>
+            <li>Ensure sufficient funds are available</li>
+            <li>Contact your bank if necessary</li>
+            <li>Resubmit your payment with correct details</li>
+            <li>Contact support if you need assistance</li>
+          </ul>
+        `
+      },
+      processing: {
+        status_title: "Payment Processing",
+        status_message: "Your biometric payment is being processed",
+        status_color: "#cce7ff",
+        status_border: "#b3d9ff",
+        status_text_color: "#004085",
+        custom_message: `Your biometric payment is currently being processed by our team. We will notify you once the verification is complete.`,
+        next_steps_text: `
+          <p><strong>Current status:</strong></p>
+          <ul>
+            <li>Payment under review by our team</li>
+            <li>Verification process in progress</li>
+            <li>Typically takes 1-2 business days</li>
+            <li>No action required from your side at this time</li>
+          </ul>
+        `
+      },
+      completed: {
+        status_title: "Payment Completed",
+        status_message: "Your biometric payment process is complete",
+        status_color: "#d1ecf1",
+        status_border: "#bee5eb",
+        status_text_color: "#0c5460",
+        custom_message: `Your biometric payment process has been completed successfully. Your application will now proceed to the next stage.`,
+        next_steps_text: `
+          <p><strong>Next steps in your application:</strong></p>
+          <ul>
+            <li>Await biometric appointment scheduling</li>
+            <li>Prepare required documents</li>
+            <li>Monitor your email for updates</li>
+            <li>Application will be processed in order</li>
+          </ul>
+        `
+      },
+      failed: {
+        status_title: "Payment Failed",
+        status_message: "Your biometric payment has failed",
+        status_color: "#e2e3e5",
+        status_border: "#d6d8db",
+        status_text_color: "#383d41",
+        custom_message: `We were unable to process your biometric payment due to technical issues or insufficient funds.`,
+        next_steps_text: `
+          <p><strong>Required actions:</strong></p>
+          <ul>
+            <li>Check your payment method details</li>
+            <li>Ensure sufficient funds are available</li>
+            <li>Try using a different payment method</li>
+            <li>Contact your bank for authorization issues</li>
+            <li>Resubmit your payment when ready</li>
+          </ul>
+        `
+      },
+      pending: {
+        status_title: "Payment Pending Review",
+        status_message: "Your biometric payment is pending review",
+        status_color: "#fff3cd",
+        status_border: "#ffeaa7",
+        status_text_color: "#856404",
+        custom_message: `Your biometric payment has been received and is pending review by our team.`,
+        next_steps_text: `
+          <p><strong>What to expect:</strong></p>
+          <ul>
+            <li>Payment under initial review</li>
+            <li>Typically processed within 24-48 hours</li>
+            <li>You will be notified of any issues</li>
+            <li>Check your email for updates</li>
+          </ul>
+        `
+      }
+    };
+
+    return statusConfig[status] || statusConfig.pending;
+  };
+
+  // Function to send email using EmailJS
+  const sendStatusEmail = async (userEmail, userName, status, referenceId, applicationType = "Biometric Payment") => {
+    try {
+      const emailContent = getStatusEmailContent(status, userName, referenceId, applicationType);
+      
+      const templateParams = {
+        user_name: userName,
+        status_type: status.toUpperCase(),
+        status_title: emailContent.status_title,
+        status_message: emailContent.status_message,
+        status_color: emailContent.status_color,
+        status_border: emailContent.status_border,
+        status_text_color: emailContent.status_text_color,
+        custom_message: emailContent.custom_message,
+        reference_id: referenceId,
+        application_type: applicationType,
+        current_date: new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
+        next_steps_text: emailContent.next_steps_text,
+        to_email: userEmail ,
+        subject: `Australia Immigration - Biometric Payment Status Update: ${status.toUpperCase()}`
+      };
+
+      const result = await emailjs.send(
+        EMAILJS_CONFIG.serviceId,
+        EMAILJS_CONFIG.templateId,
+        templateParams,
+        EMAILJS_CONFIG.publicKey
+      );
+
+      console.log('Email sent successfully:', result);
+      return true;
+    } catch (error) {
+      console.error('Error sending email:', error);
+      return false;
+    }
+  };
+
   const handleStatusUpdate = async (paymentId, newStatus) => {
     try {
       setActionLoading(true);
       const paymentRef = doc(db, "biometricPayments", paymentId);
+      const payment = payments.find(p => p.id === paymentId);
       
+      if (!payment) {
+        throw new Error("Payment not found");
+      }
+
       const updateData = {
         status: newStatus,
         verified: newStatus === "approved",
@@ -54,6 +234,29 @@ function AdminBiometricPayments() {
       };
 
       await updateDoc(paymentRef, updateData);
+
+      // Send email notification
+      try {
+        const userData = await getUserData(payment.userId);
+        const userName = userData?.fullName || payment.userEmail?.split('@')[0] || "Applicant";
+        
+        const emailSent = await sendStatusEmail(
+          payment.userEmail,
+          userName,
+          newStatus,
+          payment.paymentId,
+          "Biometric Payment"
+        );
+
+        if (emailSent) {
+          console.log(`Status update email sent to ${payment.userEmail}`);
+        } else {
+          console.warn(`Failed to send email to ${payment.userEmail}`);
+        }
+      } catch (emailError) {
+        console.error("Error sending email notification:", emailError);
+        // Don't throw error here - the status update should still proceed
+      }
 
       // Update local state
       setPayments(prev => prev.map(payment => 
@@ -74,6 +277,9 @@ function AdminBiometricPayments() {
       }
 
       setActionLoading(false);
+      
+      // Show success message
+      alert(`Status updated to ${newStatus} and notification email sent to user.`);
       
     } catch (error) {
       console.error("Error updating payment status:", error);
