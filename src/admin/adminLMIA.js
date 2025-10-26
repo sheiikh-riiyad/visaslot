@@ -21,7 +21,8 @@ import {
   updateDoc, 
   deleteDoc,
   query,
-  orderBy
+  orderBy,
+  Timestamp
 } from "firebase/firestore";
 import AdminLMIAPayments from "./adminLMIAPayments";
 
@@ -35,6 +36,8 @@ function AdminLMIA() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [updating, setUpdating] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editFormData, setEditFormData] = useState({});
 
   // Status options for filtering and updating
   const statusOptions = [
@@ -77,7 +80,138 @@ function AdminLMIA() {
 
   const handleViewDetails = (submission) => {
     setSelectedSubmission(submission);
+    // Initialize form data with properly formatted dates
+    setEditFormData({
+      ...submission,
+      issueDate: formatDateForInput(submission.issueDate),
+      expiryDate: formatDateForInput(submission.expiryDate)
+    });
+    setEditing(false);
     setShowModal(true);
+  };
+
+  const handleEditToggle = () => {
+    if (!editing) {
+      // When starting to edit, format dates for input
+      setEditFormData({
+        ...selectedSubmission,
+        issueDate: formatDateForInput(selectedSubmission.issueDate),
+        expiryDate: formatDateForInput(selectedSubmission.expiryDate)
+      });
+    }
+    setEditing(!editing);
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Helper function to convert Firestore timestamp to input date string
+  const formatDateForInput = (timestamp) => {
+    if (!timestamp) return "";
+    
+    try {
+      let date;
+      if (timestamp.toDate) {
+        // Firestore timestamp
+        date = timestamp.toDate();
+      } else if (timestamp instanceof Date) {
+        // JavaScript Date object
+        date = timestamp;
+      } else if (typeof timestamp === 'string') {
+        // ISO string
+        date = new Date(timestamp);
+      } else {
+        return "";
+      }
+      
+      if (isNaN(date.getTime())) {
+        return "";
+      }
+      
+      return date.toISOString().split('T')[0];
+    } catch (err) {
+      console.error("Error formatting date for input:", err);
+      return "";
+    }
+  };
+
+  // Helper function to convert input date string to Firestore timestamp
+  const parseDateFromInput = (dateString) => {
+    if (!dateString) return null;
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return null;
+      }
+      return Timestamp.fromDate(date);
+    } catch (err) {
+      console.error("Error parsing date from input:", err);
+      return null;
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    try {
+      setUpdating(true);
+      setError("");
+      
+      const submissionRef = doc(db, "lmiaSubmissions", selectedSubmission.id);
+      
+      // Prepare update data - convert dates back to Firestore timestamps
+      const updateData = {
+        employerName: editFormData.employerName || "",
+        employerAddress: editFormData.employerAddress || "",
+        province: editFormData.province || "",
+        jobTitle: editFormData.jobTitle || "",
+        nocCode: editFormData.nocCode || "",
+        wage: editFormData.wage || "",
+        certificateNumber: editFormData.certificateNumber || "",
+        issueDate: parseDateFromInput(editFormData.issueDate),
+        expiryDate: parseDateFromInput(editFormData.expiryDate),
+        status: editFormData.status || "pending",
+        verified: editFormData.verified || false,
+        additionalNotes: editFormData.additionalNotes || "",
+        updatedAt: new Date()
+      };
+      
+      await updateDoc(submissionRef, updateData);
+      
+      // Update local state
+      setLmiaSubmissions(prev => 
+        prev.map(sub => 
+          sub.id === selectedSubmission.id 
+            ? { 
+                ...sub, 
+                ...updateData,
+                // Keep the original submittedAt and userId
+                submittedAt: sub.submittedAt,
+                userId: sub.userId,
+                submissionId: sub.submissionId
+              }
+            : sub
+        )
+      );
+      
+      // Update selected submission
+      setSelectedSubmission(prev => ({
+        ...prev,
+        ...updateData
+      }));
+      
+      setEditing(false);
+      setSuccess("Submission updated successfully");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      console.error("Error updating submission:", err);
+      setError("Failed to update submission: " + err.message);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const handleUpdateStatus = async (submissionId, newStatus) => {
@@ -121,6 +255,7 @@ function AdminLMIA() {
           prev.filter(sub => sub.id !== submissionId)
         );
         
+        setShowModal(false);
         setSuccess("LMIA submission deleted successfully");
         setTimeout(() => setSuccess(""), 3000);
       } catch (err) {
@@ -182,7 +317,6 @@ function AdminLMIA() {
         date = new Date(timestamp);
       }
       
-      // Check if date is valid
       if (isNaN(date.getTime())) {
         return "Invalid Date";
       }
@@ -210,7 +344,6 @@ function AdminLMIA() {
         expiry = new Date(expiryDate);
       }
       
-      // Check if date is valid
       if (isNaN(expiry.getTime())) {
         return false;
       }
@@ -554,32 +687,127 @@ function AdminLMIA() {
         </Col>
       </Row>
 
-      {/* Details Modal */}
+      {/* Enhanced Details Modal with Editing */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>LMIA Submission Details</Modal.Title>
+          <Modal.Title>
+            {editing ? "Edit LMIA Submission" : "LMIA Submission Details"}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedSubmission && (
             <Row>
               <Col md={6}>
                 <h6>Employer Information</h6>
-                <p><strong>Name:</strong> {selectedSubmission.employerName}</p>
-                <p><strong>Address:</strong> {selectedSubmission.employerAddress}</p>
-                <p><strong>Province:</strong> {selectedSubmission.province}</p>
-                
+                {editing ? (
+                  <>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Employer Name</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={editFormData.employerName || ""}
+                        onChange={(e) => handleEditChange("employerName", e.target.value)}
+                      />
+                    </Form.Group>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Employer Address</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={editFormData.employerAddress || ""}
+                        onChange={(e) => handleEditChange("employerAddress", e.target.value)}
+                      />
+                    </Form.Group>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Province</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={editFormData.province || ""}
+                        onChange={(e) => handleEditChange("province", e.target.value)}
+                      />
+                    </Form.Group>
+                  </>
+                ) : (
+                  <>
+                    <p><strong>Name:</strong> {selectedSubmission.employerName}</p>
+                    <p><strong>Address:</strong> {selectedSubmission.employerAddress}</p>
+                    <p><strong>Province:</strong> {selectedSubmission.province}</p>
+                  </>
+                )}
+
                 <h6 className="mt-3">Job Information</h6>
-                <p><strong>Title:</strong> {selectedSubmission.jobTitle}</p>
-                <p><strong>NOC Code:</strong> {selectedSubmission.nocCode || "N/A"}</p>
-                <p><strong>Wage:</strong> ${selectedSubmission.wage}/hour</p>
+                {editing ? (
+                  <>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Job Title</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={editFormData.jobTitle || ""}
+                        onChange={(e) => handleEditChange("jobTitle", e.target.value)}
+                      />
+                    </Form.Group>
+                    <Form.Group className="mb-2">
+                      <Form.Label>NOC Code</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={editFormData.nocCode || ""}
+                        onChange={(e) => handleEditChange("nocCode", e.target.value)}
+                      />
+                    </Form.Group>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Wage ($/hour)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        value={editFormData.wage || ""}
+                        onChange={(e) => handleEditChange("wage", parseFloat(e.target.value) || "")}
+                      />
+                    </Form.Group>
+                  </>
+                ) : (
+                  <>
+                    <p><strong>Title:</strong> {selectedSubmission.jobTitle}</p>
+                    <p><strong>NOC Code:</strong> {selectedSubmission.nocCode || "N/A"}</p>
+                    <p><strong>Wage:</strong> ${selectedSubmission.wage}/hour</p>
+                  </>
+                )}
               </Col>
               
               <Col md={6}>
                 <h6>Certificate Details</h6>
-                <p><strong>Certificate #:</strong> {selectedSubmission.certificateNumber || "N/A"}</p>
-                <p><strong>Issue Date:</strong> {formatDate(selectedSubmission.issueDate)}</p>
-                <p><strong>Expiry Date:</strong> {formatDate(selectedSubmission.expiryDate)}</p>
-                
+                {editing ? (
+                  <>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Certificate Number</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={editFormData.certificateNumber || ""}
+                        onChange={(e) => handleEditChange("certificateNumber", e.target.value)}
+                      />
+                    </Form.Group>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Issue Date</Form.Label>
+                      <Form.Control
+                        type="date"
+                        value={editFormData.issueDate || ""}
+                        onChange={(e) => handleEditChange("issueDate", e.target.value)}
+                      />
+                    </Form.Group>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Expiry Date</Form.Label>
+                      <Form.Control
+                        type="date"
+                        value={editFormData.expiryDate || ""}
+                        onChange={(e) => handleEditChange("expiryDate", e.target.value)}
+                      />
+                    </Form.Group>
+                  </>
+                ) : (
+                  <>
+                    <p><strong>Certificate #:</strong> {selectedSubmission.certificateNumber || "N/A"}</p>
+                    <p><strong>Issue Date:</strong> {formatDate(selectedSubmission.issueDate)}</p>
+                    <p><strong>Expiry Date:</strong> {formatDate(selectedSubmission.expiryDate)}</p>
+                  </>
+                )}
+
                 <h6 className="mt-3">Submission Info</h6>
                 <p><strong>Submission ID:</strong> {selectedSubmission.submissionId}</p>
                 <p><strong>User Email:</strong> {selectedSubmission.userEmail}</p>
@@ -587,41 +815,122 @@ function AdminLMIA() {
                 <p><strong>Submitted:</strong> {formatDate(selectedSubmission.submittedAt)}</p>
                 
                 <h6 className="mt-3">Status</h6>
-                <p>
-                  <Badge bg={getStatusVariant(selectedSubmission.status)}>
-                    {selectedSubmission.status?.replace('_', ' ').toUpperCase()}
-                  </Badge>
-                  {selectedSubmission.verified && (
-                    <Badge bg="success" className="ms-2">
-                      <i className="fas fa-check"></i> VERIFIED
+                {editing ? (
+                  <Form.Group className="mb-2">
+                    <Form.Label>Status</Form.Label>
+                    <Form.Select
+                      value={editFormData.status || ""}
+                      onChange={(e) => handleEditChange("status", e.target.value)}
+                    >
+                      {statusOptions.map(status => (
+                        <option key={status} value={status}>
+                          {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                ) : (
+                  <p>
+                    <Badge bg={getStatusVariant(selectedSubmission.status)}>
+                      {selectedSubmission.status?.replace('_', ' ').toUpperCase()}
                     </Badge>
-                  )}
-                </p>
+                    {selectedSubmission.verified && (
+                      <Badge bg="success" className="ms-2">
+                        <i className="fas fa-check"></i> VERIFIED
+                      </Badge>
+                    )}
+                  </p>
+                )}
+
+                {editing && (
+                  <Form.Group className="mb-2">
+                    <Form.Check
+                      type="checkbox"
+                      label="Verified"
+                      checked={editFormData.verified || false}
+                      onChange={(e) => handleEditChange("verified", e.target.checked)}
+                    />
+                  </Form.Group>
+                )}
               </Col>
               
-              {selectedSubmission.additionalNotes && (
+              {(selectedSubmission.additionalNotes || editing) && (
                 <Col md={12}>
                   <h6 className="mt-3">Additional Notes</h6>
-                  <Card className="bg-light">
-                    <Card.Body>
-                      {selectedSubmission.additionalNotes}
-                    </Card.Body>
-                  </Card>
+                  {editing ? (
+                    <Form.Group className="mb-2">
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        value={editFormData.additionalNotes || ""}
+                        onChange={(e) => handleEditChange("additionalNotes", e.target.value)}
+                        placeholder="Enter any additional notes..."
+                      />
+                    </Form.Group>
+                  ) : (
+                    <Card className="bg-light">
+                      <Card.Body>
+                        {selectedSubmission.additionalNotes || "No additional notes"}
+                      </Card.Body>
+                    </Card>
+                  )}
                 </Col>
               )}
             </Row>
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Close
-          </Button>
+          <div className="d-flex justify-content-between w-100">
+            <div>
+              {!editing && (
+                <Button 
+                  variant="warning" 
+                  onClick={handleEditToggle}
+                >
+                  <i className="fas fa-edit me-1"></i>
+                  Edit Submission
+                </Button>
+              )}
+            </div>
+            <div>
+              {editing ? (
+                <>
+                  <Button 
+                    variant="secondary" 
+                    onClick={handleEditToggle}
+                    className="me-2"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    variant="primary" 
+                    onClick={handleSaveChanges}
+                    disabled={updating}
+                  >
+                    {updating ? (
+                      <>
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-save me-1"></i>
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <Button variant="secondary" onClick={() => setShowModal(false)}>
+                  Close
+                </Button>
+              )}
+            </div>
+          </div>
         </Modal.Footer>
       </Modal>
 
-
-          <AdminLMIAPayments/>
-
+      <AdminLMIAPayments/>
     </Container>
   );
 }
