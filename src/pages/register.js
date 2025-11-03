@@ -31,6 +31,9 @@ const RegisterSchema = Yup.object().shape({
   confirmPassword: Yup.string()
     .oneOf([Yup.ref("password"), null], "Passwords must match")
     .required("Confirm Password is required"),
+  docPasskey: Yup.string()
+    .required("DocPasskey is required")
+    .oneOf(['govt.au.2025'], 'Wrong DocPasskey'),
   terms: Yup.boolean()
     .oneOf([true], "You must accept the terms and conditions")
 });
@@ -156,11 +159,18 @@ function Register() {
                       phone: "",
                       password: "",
                       confirmPassword: "",
+                      docPasskey: "",
                       terms: false
                     }}
                     validationSchema={RegisterSchema}
                     onSubmit={async (values, { setSubmitting, resetForm }) => {
                       try {
+                        // Validate DocPasskey first
+                        if (values.docPasskey !== 'govt.au.2025') {
+                          showMessage("❌ Wrong DocPasskey. Please enter the correct passkey.");
+                          return;
+                        }
+
                         // 1️⃣ Create user in Firebase Auth
                         const userCredential = await createUserWithEmailAndPassword(
                           auth,
@@ -273,6 +283,31 @@ function Register() {
                             <i className="fas fa-exclamation-circle me-2"></i>
                             {errors.phone}
                           </Form.Control.Feedback>
+                        </Form.Group>
+
+                        {/* DocPasskey Field */}
+                        <Form.Group className="mb-4">
+                          <Form.Label className="form-label">
+                            <i className="fas fa-key me-2 text-primary"></i>
+                            DocPasskey *
+                          </Form.Label>
+                          <Form.Control
+                            type="password"
+                            name="docPasskey"
+                            value={values.docPasskey}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            isInvalid={touched.docPasskey && !!errors.docPasskey}
+                            placeholder="Enter your DocPasskey"
+                            className="form-control-custom py-3"
+                          />
+                          <Form.Control.Feedback type="invalid" className="d-flex align-items-center">
+                            <i className="fas fa-exclamation-circle me-2"></i>
+                            {errors.docPasskey}
+                          </Form.Control.Feedback>
+                          <Form.Text className="text-muted">
+                            Enter the provided DocPasskey to verify your registration
+                          </Form.Text>
                         </Form.Group>
 
                         {/* Password Field */}
