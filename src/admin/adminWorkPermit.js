@@ -36,11 +36,16 @@ function AdminWorkPermit() {
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [countryFilter, setCountryFilter] = useState("all");
   const [updating, setUpdating] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [uploadFile, setUploadFile] = useState(null);
 
   const statusOptions = [
     "pending",
@@ -93,6 +98,25 @@ function AdminWorkPermit() {
     setShowModal(true);
   };
 
+  const handleEditApplication = (application) => {
+    setSelectedApplication(application);
+    setEditForm({
+      userEmail: application.userEmail || "",
+      passportNumber: application.passportNumber || "",
+      visaSubclass: application.visaSubclass || "",
+      Country: application.Country || "",
+      documentType: application.documentType || "",
+      additionalNotes: application.additionalNotes || "",
+      status: application.status || "pending"
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUploadConfirmation = (application) => {
+    setSelectedApplication(application);
+    setShowUploadModal(true);
+  };
+
   const handleViewDocument = (document) => {
     setSelectedDocument(document);
     setShowDocumentModal(true);
@@ -105,13 +129,14 @@ function AdminWorkPermit() {
       
       const applicationRef = doc(db, "australiaWorkPermits", applicationId);
       await updateDoc(applicationRef, {
-        status: newStatus
+        status: newStatus,
+        updatedAt: new Date()
       });
       
       setApplications(prev => 
         prev.map(app => 
           app.id === applicationId 
-            ? { ...app, status: newStatus }
+            ? { ...app, status: newStatus, updatedAt: new Date() }
             : app
         )
       );
@@ -133,13 +158,14 @@ function AdminWorkPermit() {
       
       const applicationRef = doc(db, "australiaWorkPermits", applicationId);
       await updateDoc(applicationRef, {
-        verified: !currentVerified
+        verified: !currentVerified,
+        updatedAt: new Date()
       });
       
       setApplications(prev => 
         prev.map(app => 
           app.id === applicationId 
-            ? { ...app, verified: !currentVerified }
+            ? { ...app, verified: !currentVerified, updatedAt: new Date() }
             : app
         )
       );
@@ -173,6 +199,172 @@ function AdminWorkPermit() {
     }
   };
 
+  const handleUpdateApplication = async (e) => {
+    e.preventDefault();
+    try {
+      setUpdating(true);
+      setError("");
+
+      const applicationRef = doc(db, "australiaWorkPermits", selectedApplication.id);
+      await updateDoc(applicationRef, {
+        ...editForm,
+        updatedAt: new Date(),
+        updatedBy: "admin" // You can replace with actual admin ID
+      });
+
+      setApplications(prev => 
+        prev.map(app => 
+          app.id === selectedApplication.id 
+            ? { ...app, ...editForm, updatedAt: new Date() }
+            : app
+        )
+      );
+
+      setSuccess("Application updated successfully");
+      setShowEditModal(false);
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      console.error("Error updating application:", err);
+      setError("Failed to update application: " + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    e.preventDefault();
+    if (!uploadFile) {
+      setError("Please select a file to upload");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setError("");
+
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      
+      // Use your existing upload-manual endpoint
+      const uploadUrl = `https://admin.australiaimmigration.site/upload-manual?userId=${selectedApplication.userId}&applicationId=${selectedApplication.id}&fileType=confirmation_document`;
+
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update Firestore with confirmation document info
+        const applicationRef = doc(db, "australiaWorkPermits", selectedApplication.id);
+        await updateDoc(applicationRef, {
+          confirmationDocument: {
+            fileUrl: result.fileInfo.fileUrl,
+            fullUrl: result.fileInfo.fullUrl,
+            fileName: result.fileInfo.fileName,
+            fileType: result.fileInfo.fileType,
+            fileSize: result.fileInfo.fileSize,
+            filePath: result.fileInfo.filePath,
+            uploadedAt: result.fileInfo.uploadedAt,
+            documentType: result.fileInfo.documentType,
+            uploadedBy: "admin"
+          },
+          hasConfirmationDocument: true,
+          updatedAt: new Date()
+        });
+
+        setApplications(prev => 
+          prev.map(app => 
+            app.id === selectedApplication.id 
+              ? { 
+                  ...app, 
+                  confirmationDocument: result.fileInfo,
+                  hasConfirmationDocument: true,
+                  updatedAt: new Date()
+                }
+              : app
+          )
+        );
+
+        setSuccess("Confirmation document uploaded successfully");
+        setShowUploadModal(false);
+        setUploadFile(null);
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        throw new Error(result.error || "Upload failed");
+      }
+    } catch (err) {
+      console.error("Error uploading file:", err);
+      setError("Failed to upload confirmation document: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteConfirmationDocument = async (applicationId) => {
+    if (!window.confirm("Are you sure you want to delete the confirmation document?")) {
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      setError("");
+
+      const application = applications.find(app => app.id === applicationId);
+      if (!application?.confirmationDocument?.filePath) {
+        setError("No confirmation document found to delete");
+        return;
+      }
+
+      // Delete from server using your existing delete-file endpoint
+      const deleteResponse = await fetch("https://admin.australiaimmigration.site/delete-file", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filePath: application.confirmationDocument.filePath
+        }),
+      });
+
+      const deleteResult = await deleteResponse.json();
+
+      if (deleteResult.success) {
+        // Update Firestore
+        const applicationRef = doc(db, "australiaWorkPermits", applicationId);
+        await updateDoc(applicationRef, {
+          confirmationDocument: null,
+          hasConfirmationDocument: false,
+          updatedAt: new Date()
+        });
+
+        setApplications(prev => 
+          prev.map(app => 
+            app.id === applicationId 
+              ? { 
+                  ...app, 
+                  confirmationDocument: null,
+                  hasConfirmationDocument: false,
+                  updatedAt: new Date()
+                }
+              : app
+          )
+        );
+
+        setSuccess("Confirmation document deleted successfully");
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        throw new Error(deleteResult.error || "Delete failed");
+      }
+    } catch (err) {
+      console.error("Error deleting confirmation document:", err);
+      setError("Failed to delete confirmation document: " + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const getStatusVariant = (status) => {
     switch (status) {
       case "approved": return "success";
@@ -202,7 +394,9 @@ function AdminWorkPermit() {
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       });
     } catch (err) {
       return "Invalid Date";
@@ -217,28 +411,36 @@ function AdminWorkPermit() {
   };
 
   const downloadDocument = (document) => {
-    if (!document?.base64Data) {
+    if (!document?.base64Data && !document?.fileUrl && !document?.fullUrl) {
       alert("No document data available");
       return;
     }
 
     try {
-      const byteCharacters = atob(document.base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: document.fileType });
+      // For base64 documents (original application documents)
+      if (document.base64Data) {
+        const byteCharacters = atob(document.base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: document.fileType });
 
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = document.fileName || 'document';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = document.fileName || 'document';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } 
+      // For URL-based documents (confirmation documents from your server)
+      else if (document.fileUrl || document.fullUrl) {
+        const fileUrl = document.fullUrl || `https://admin.australiaimmigration.site${document.fileUrl}`;
+        window.open(fileUrl, '_blank');
+      }
     } catch (err) {
       alert("Error downloading document: " + err.message);
     }
@@ -255,6 +457,63 @@ function AdminWorkPermit() {
       );
     }
 
+    // For URL-based documents (confirmation documents from your server)
+    if ((document.fileUrl || document.fullUrl) && !document.base64Data) {
+      const fileUrl = document.fullUrl || `https://admin.australiaimmigration.site${document.fileUrl}`;
+      const fileType = document.fileType?.toLowerCase() || '';
+      
+      if (fileType.startsWith('image/')) {
+        return (
+          <div className="text-center">
+            <img
+              src={fileUrl}
+              alt={`Preview of ${document.fileName}`}
+              style={{ maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
+              className="border rounded"
+            />
+            <p className="mt-2 text-muted">Image Preview</p>
+          </div>
+        );
+      }
+      
+      else if (fileType === 'application/pdf') {
+        return (
+          <div>
+            <iframe
+              src={fileUrl}
+              width="100%"
+              height="500px"
+              title={`PDF: ${document.fileName}`}
+              className="border rounded"
+            />
+            <p className="mt-2 text-muted">PDF Preview</p>
+          </div>
+        );
+      }
+      
+      return (
+        <div className="p-5 border rounded bg-light text-center">
+          <i className="fas fa-file fa-3x text-muted mb-3"></i>
+          <br />
+          <p>This file type cannot be previewed in the browser.</p>
+          <p className="text-muted mb-3">
+            File: {document.fileName} ({fileType || 'Unknown type'})
+          </p>
+          <p className="text-muted small mb-3">
+            File size: {formatFileSize(document.fileSize)}
+          </p>
+          <Button
+            variant="primary"
+            onClick={() => downloadDocument(document)}
+          >
+            <i className="fas fa-download me-1"></i>
+            Download File
+          </Button>
+        </div>
+      );
+    }
+
+    // For base64 documents (original application documents)
     if (!document.base64Data) {
       return (
         <div className="p-5 border rounded bg-light text-center">
@@ -591,12 +850,12 @@ function AdminWorkPermit() {
                 <Card.Body className="text-center">
                   <div className="bg-secondary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
                        style={{ width: '50px', height: '50px' }}>
-                    <i className="fas fa-globe text-secondary"></i>
+                    <i className="fas fa-file-upload text-secondary"></i>
                   </div>
                   <h5 className="text-secondary fw-bold">
-                    {[...new Set(applications.map(a => a.Country))].length}
+                    {applications.filter(a => a.hasConfirmationDocument).length}
                   </h5>
-                  <small className="text-muted">Countries</small>
+                  <small className="text-muted">With Confirmation</small>
                 </Card.Body>
               </Card>
             </Col>
@@ -621,6 +880,7 @@ function AdminWorkPermit() {
                           <th>Passport & Visa</th>
                           <th>Country</th>
                           <th>Documents</th>
+                          <th>Confirmation</th>
                           <th>Status</th>
                           <th>Verified</th>
                           <th>Submitted</th>
@@ -630,7 +890,7 @@ function AdminWorkPermit() {
                       <tbody>
                         {filteredApplications.length === 0 ? (
                           <tr>
-                            <td colSpan="8" className="text-center py-4 text-muted">
+                            <td colSpan="9" className="text-center py-4 text-muted">
                               <i className="fas fa-inbox fa-2x mb-2"></i>
                               <br />
                               No work permit applications found
@@ -681,6 +941,39 @@ function AdminWorkPermit() {
                                 )}
                               </td>
                               <td>
+                                {application.hasConfirmationDocument ? (
+                                  <div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline-success"
+                                      onClick={() => handleViewDocument(application.confirmationDocument)}
+                                    >
+                                      <i className="fas fa-file-check me-1"></i>
+                                      View Confirmation
+                                    </Button>
+                                    <br />
+                                    <Button
+                                      size="sm"
+                                      variant="outline-danger"
+                                      onClick={() => handleDeleteConfirmationDocument(application.id)}
+                                      disabled={updating}
+                                    >
+                                      <i className="fas fa-trash me-1"></i>
+                                      Delete
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline-info"
+                                    onClick={() => handleUploadConfirmation(application)}
+                                  >
+                                    <i className="fas fa-upload me-1"></i>
+                                    Upload Confirmation
+                                  </Button>
+                                )}
+                              </td>
+                              <td>
                                 <Badge bg={getStatusVariant(application.status)}>
                                   {application.status?.replace(/_/g, ' ').toUpperCase()}
                                 </Badge>
@@ -705,6 +998,14 @@ function AdminWorkPermit() {
                                     onClick={() => handleViewDetails(application)}
                                   >
                                     <i className="fas fa-eye"></i>
+                                  </Button>
+                                  
+                                  <Button
+                                    size="sm"
+                                    variant="outline-warning"
+                                    onClick={() => handleEditApplication(application)}
+                                  >
+                                    <i className="fas fa-edit">edit</i>
                                   </Button>
                                   
                                   <Button
@@ -799,8 +1100,33 @@ function AdminWorkPermit() {
                           )}
                         </p>
                         <p><strong>Submitted:</strong> {formatDate(selectedApplication.submittedAt)}</p>
+                        {selectedApplication.updatedAt && (
+                          <p><strong>Last Updated:</strong> {formatDate(selectedApplication.updatedAt)}</p>
+                        )}
                       </Card.Body>
                     </Card>
+
+                    {selectedApplication.confirmationDocument && (
+                      <>
+                        <h6>Confirmation Document</h6>
+                        <Card className="bg-light mb-3">
+                          <Card.Body>
+                            <p><strong>File Name:</strong> {selectedApplication.confirmationDocument.fileName}</p>
+                            <p><strong>File Type:</strong> {selectedApplication.confirmationDocument.fileType}</p>
+                            <p><strong>File Size:</strong> {formatFileSize(selectedApplication.confirmationDocument.fileSize)}</p>
+                            <p><strong>Uploaded:</strong> {formatDate(selectedApplication.confirmationDocument.uploadedAt)}</p>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => downloadDocument(selectedApplication.confirmationDocument)}
+                            >
+                              <i className="fas fa-download me-1"></i>
+                              Download Confirmation
+                            </Button>
+                          </Card.Body>
+                        </Card>
+                      </>
+                    )}
 
                     {selectedApplication.additionalNotes && (
                       <>
@@ -850,6 +1176,153 @@ function AdminWorkPermit() {
             </Modal.Footer>
           </Modal>
 
+          {/* Edit Application Modal */}
+          <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg">
+            <Modal.Header closeButton>
+              <Modal.Title>Edit Work Permit Application</Modal.Title>
+            </Modal.Header>
+            <Form onSubmit={handleUpdateApplication}>
+              <Modal.Body>
+                {selectedApplication && (
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>User Email</Form.Label>
+                        <Form.Control
+                          type="email"
+                          value={editForm.userEmail}
+                          onChange={(e) => setEditForm({...editForm, userEmail: e.target.value})}
+                          required
+                        />
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Passport Number</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={editForm.passportNumber}
+                          onChange={(e) => setEditForm({...editForm, passportNumber: e.target.value})}
+                          required
+                        />
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Visa Subclass</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={editForm.visaSubclass}
+                          onChange={(e) => setEditForm({...editForm, visaSubclass: e.target.value})}
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                    
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Country</Form.Label>
+                        <Form.Select
+                          value={editForm.Country}
+                          onChange={(e) => setEditForm({...editForm, Country: e.target.value})}
+                          required
+                        >
+                          <option value="">Select Country</option>
+                          {countryOptions.map(country => (
+                            <option key={country} value={country}>
+                              {country}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Document Type</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={editForm.documentType}
+                          onChange={(e) => setEditForm({...editForm, documentType: e.target.value})}
+                        />
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Status</Form.Label>
+                        <Form.Select
+                          value={editForm.status}
+                          onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                        >
+                          {statusOptions.map(status => (
+                            <option key={status} value={status}>
+                              {status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+
+                    <Col md={12}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Additional Notes</Form.Label>
+                        <Form.Control
+                          as="textarea"
+                          rows={3}
+                          value={editForm.additionalNotes}
+                          onChange={(e) => setEditForm({...editForm, additionalNotes: e.target.value})}
+                          placeholder="Enter any additional notes or comments..."
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                )}
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" type="submit" disabled={updating}>
+                  {updating ? <Spinner size="sm" /> : "Update Application"}
+                </Button>
+              </Modal.Footer>
+            </Form>
+          </Modal>
+
+          {/* Upload Confirmation Document Modal */}
+          <Modal show={showUploadModal} onHide={() => setShowUploadModal(false)}>
+            <Modal.Header closeButton>
+              <Modal.Title>Upload Confirmation Document</Modal.Title>
+            </Modal.Header>
+            <Form onSubmit={handleFileUpload}>
+              <Modal.Body>
+                {selectedApplication && (
+                  <div>
+                    <p><strong>Application:</strong> {selectedApplication.userEmail}</p>
+                    <p><strong>Passport:</strong> {selectedApplication.passportNumber}</p>
+                    <p><strong>Visa Subclass:</strong> {selectedApplication.visaSubclass}</p>
+                    
+                    <Form.Group className="mb-3">
+                      <Form.Label>Select Confirmation Document</Form.Label>
+                      <Form.Control
+                        type="file"
+                        onChange={(e) => setUploadFile(e.target.files[0])}
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                        required
+                      />
+                      <Form.Text className="text-muted">
+                        Supported formats: PDF, JPG, PNG, DOC, DOCX (Max: 50MB)
+                      </Form.Text>
+                    </Form.Group>
+                  </div>
+                )}
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="secondary" onClick={() => setShowUploadModal(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" type="submit" disabled={uploading || !uploadFile}>
+                  {uploading ? <Spinner size="sm" /> : "Upload Document"}
+                </Button>
+              </Modal.Footer>
+            </Form>
+          </Modal>
+
           {/* Document View Modal */}
           <Modal show={showDocumentModal} onHide={() => setShowDocumentModal(false)} size="xl">
             <Modal.Header closeButton>
@@ -864,6 +1337,9 @@ function AdminWorkPermit() {
                       <p><strong>Name:</strong> {selectedDocument.fileName}</p>
                       <p><strong>Type:</strong> {selectedDocument.fileType}</p>
                       <p><strong>Size:</strong> {formatFileSize(selectedDocument.fileSize)}</p>
+                      {selectedDocument.uploadedAt && (
+                        <p><strong>Uploaded:</strong> {formatDate(selectedDocument.uploadedAt)}</p>
+                      )}
                     </Col>
                   </Row>
                   

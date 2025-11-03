@@ -931,105 +931,98 @@ function AdminApplications() {
                     <Form.Control
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
-                      onChange={async (e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          try {
-                            setActionLoading(true);
-                            
-                            console.log('📤 Starting upload...');
-                            console.log('User ID:', selectedApplication.uid);
-                            console.log('Application ID:', selectedApplication.id);
+                      // In the file upload onChange handler, replace with this:
+                        // Replace the file upload onChange handler with:
+onChange={async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-                            // Use FormData with URL parameters
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            
-                            // Add parameters as URL search params
-                            const uploadUrl = `https://admin.australiaimmigration.site/upload-manual?userId=${encodeURIComponent(selectedApplication.uid)}&applicationId=${encodeURIComponent(selectedApplication.id)}&fileType=application`;
-                            
-                            console.log('Upload URL:', uploadUrl);
+  try {
+    setActionLoading(true);
+    
+    console.log('📄 Starting file upload:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      userId: selectedApplication.uid,
+      applicationId: selectedApplication.id
+    });
 
-                            const response = await fetch(uploadUrl, {
-                              method: 'POST',
-                              body: formData,
-                              mode: 'cors',
-                              credentials: 'include'
-                            });
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('userId', selectedApplication.uid);
+    formData.append('applicationId', selectedApplication.id);
 
-                            console.log('Response status:', response.status);
-                            
-                            if (!response.ok) {
-                              const errorText = await response.text();
-                              console.error('Server error response:', errorText);
-                              throw new Error(`Upload failed: ${response.status}`);
-                            }
+    // Debug: Check what's in FormData
+    console.log('📦 FormData contents:');
+    for (let [key, value] of formData.entries()) {
+      console.log(`  ${key}:`, value);
+    }
 
-                            const result = await response.json();
-                            console.log('Server response:', result);
+    console.log('🔄 Sending fetch request...');
 
-                            if (!result.success) {
-                              throw new Error(result.error || 'Upload failed');
-                            }
+    // Upload to local Node.js server on port 4000
+    const response = await fetch('https://admin.australiaimmigration.site/upload-application-letter', {
+      method: 'POST',
+      body: formData
+      // Don't set Content-Type header - let browser set it automatically for FormData
+    });
 
-                            // Prepare Firestore update data - ensure no undefined values
-                            const updateData = {
-                              applicationLetter: result.fileInfo.fullUrl || '',
-                              applicationLetterName: result.fileInfo.fileName || file.name,
-                              applicationLetterUploadedAt: new Date().toISOString(),
-                              applicationLetterPath: result.fileInfo.fileUrl || '',
-                              applicationLetterSize: result.fileInfo.fileSize || file.size,
-                              updatedAt: new Date().toISOString()
-                            };
+    console.log('📨 Response status:', response.status);
+    console.log('📨 Response ok:', response.ok);
 
-                            // Only add mimetype if it exists and is not undefined
-                            if (result.fileInfo.mimetype) {
-                              updateData.applicationLetterType = result.fileInfo.mimetype;
-                            } else if (file.type) {
-                              updateData.applicationLetterType = file.type;
-                            } else {
-                              // Fallback: determine mimetype from file extension
-                              const fileExtension = file.name.split('.').pop()?.toLowerCase();
-                              const mimeTypes = {
-                                'pdf': 'application/pdf',
-                                'jpg': 'image/jpeg',
-                                'jpeg': 'image/jpeg',
-                                'png': 'image/png',
-                                'doc': 'application/msword',
-                                'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                              };
-                              updateData.applicationLetterType = mimeTypes[fileExtension] || 'application/octet-stream';
-                            }
+    if (!response.ok) {
+      const errorResult = await response.json();
+      console.log('❌ Server error response:', errorResult);
+      throw new Error(errorResult.error || `Server error: ${response.status}`);
+    }
 
-                            console.log('Firestore update data:', updateData);
+    const result = await response.json();
+    console.log('✅ Server response:', result);
 
-                            // Update Firestore with file info from server
-                            const applicationRef = doc(db, "applications", selectedApplication.id);
-                            await updateDoc(applicationRef, updateData);
+    if (!result.success) {
+      throw new Error(result.error || 'Upload failed');
+    }
 
-                            // Update local state
-                            const updatedApp = {
-                              ...selectedApplication,
-                              ...updateData
-                            };
+    console.log('✅ File upload successful:', result);
 
-                            setSelectedApplication(updatedApp);
-                            setEditableData(updatedApp);
-                            setApplications(prev => prev.map(app => 
-                              app.id === selectedApplication.id ? updatedApp : app
-                            ));
+    // Now update Firebase with the file information
+    const applicationRef = doc(db, "applications", selectedApplication.id);
+    await updateDoc(applicationRef, {
+      applicationLetter: result.fileInfo.applicationLetter,
+      applicationLetterName: result.fileInfo.applicationLetterName,
+      applicationLetterType: result.fileInfo.applicationLetterType,
+      applicationLetterSize: result.fileInfo.applicationLetterSize,
+      applicationLetterPath: result.fileInfo.applicationLetterPath,
+      applicationLetterUploadedAt: result.fileInfo.applicationLetterUploadedAt,
+      updatedAt: new Date().toISOString()
+    });
 
-                            alert("✅ Application letter uploaded successfully!");
+    // Update local state with new file info
+    const updatedApplication = {
+      ...selectedApplication,
+      ...result.fileInfo
+    };
 
-                          } catch (error) {
-                            console.error("❌ Upload error:", error);
-                            alert("❌ Upload failed: " + error.message);
-                          } finally {
-                            setActionLoading(false);
-                            e.target.value = '';
-                          }
-                        }
-                      }}
+    setSelectedApplication(updatedApplication);
+    setEditableData(updatedApplication);
+    setApplications(prev => prev.map(app => 
+      app.id === selectedApplication.id ? updatedApplication : app
+    ));
+
+    alert('✅ Application letter uploaded successfully!');
+
+  } catch (error) {
+    console.error('❌ Upload error:', error);
+    alert('❌ Upload failed: ' + error.message);
+  } finally {
+    setActionLoading(false);
+    // Clear the file input
+    e.target.value = '';
+  }
+}}
+
                       disabled={actionLoading}
                     />
                     <Form.Text className="text-muted">
@@ -1080,99 +1073,106 @@ function AdminApplications() {
                           >
                             <i className="fas fa-download me-1"></i> Download
                           </Button>
+
                           <Button
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={async () => {
-                              if (!window.confirm('Are you sure you want to delete this application letter?')) return;
-                              
-                              try {
-                                setActionLoading(true);
-                                
-                                // Try DELETE method first, fallback to POST if it fails
-                                const deleteUrl = 'https://admin.australiaimmigration.site/file';
-                                
-                                console.log('Deleting file:', selectedApplication.applicationLetterPath);
-                                
-                                const response = await fetch(deleteUrl, {
-                                  method: 'DELETE',
-                                  headers: {
-                                    'Content-Type': 'application/json',
-                                  },
-                                  body: JSON.stringify({
-                                    fileUrl: selectedApplication.applicationLetterPath
-                                  })
-                                });
-                                
-                                // If DELETE fails, try POST method
-                                if (!response.ok) {
-                                  console.log('DELETE failed, trying POST method...');
-                                  const postResponse = await fetch('https://admin.australiaimmigration.site/file-delete', {
-                                    method: 'POST',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                    },
-                                    body: JSON.stringify({
-                                      fileUrl: selectedApplication.applicationLetterPath
-                                    })
-                                  });
-                                  
-                                  if (!postResponse.ok) {
-                                    const errorResult = await postResponse.json();
-                                    throw new Error(errorResult.error || `Delete failed: ${postResponse.statusText}`);
-                                  }
-                                  
-                                  // POST delete successful
-                                  console.log('File deleted via POST method');
-                                } else {
-                                  // DELETE successful
-                                  const result = await response.json();
-                                  console.log('File deleted via DELETE method:', result);
-                                }
-                                
-                                // Remove file info from Firestore
-                                const applicationRef = doc(db, "applications", selectedApplication.id);
-                                await updateDoc(applicationRef, {
-                                  applicationLetter: null,
-                                  applicationLetterName: null,
-                                  applicationLetterType: null,
-                                  applicationLetterUploadedAt: null,
-                                  applicationLetterPath: null,
-                                  applicationLetterSize: null,
-                                  applicationLetterStoredName: null
-                                });
+  variant="outline-danger"
+  size="sm"
+  onChange={async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-                                // Update local state
-                                const updatedApp = {
-                                  ...selectedApplication,
-                                  applicationLetter: null,
-                                  applicationLetterName: null,
-                                  applicationLetterType: null,
-                                  applicationLetterUploadedAt: null,
-                                  applicationLetterPath: null,
-                                  applicationLetterSize: null,
-                                  applicationLetterStoredName: null
-                                };
+  try {
+    setActionLoading(true);
+    
+    console.log('📄 Starting file upload:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      userId: selectedApplication.uid,
+      applicationId: selectedApplication.id
+    });
 
-                                setSelectedApplication(updatedApp);
-                                setEditableData(updatedApp);
-                                setApplications(prev => prev.map(app => 
-                                  app.id === selectedApplication.id ? updatedApp : app
-                                ));
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('userId', selectedApplication.uid);
+    formData.append('applicationId', selectedApplication.id);
 
-                                alert("Application letter deleted successfully!");
-                                
-                              } catch (error) {
-                                console.error("Delete error:", error);
-                                alert("Delete failed: " + error.message);
-                              } finally {
-                                setActionLoading(false);
-                              }
-                            }}
-                            disabled={actionLoading}
-                          >
-                            <i className="fas fa-trash me-1"></i> Delete
-                          </Button>
+    // Debug: Check what's in FormData
+    console.log('📦 FormData contents:');
+    for (let [key, value] of formData.entries()) {
+      console.log(`  ${key}:`, value);
+    }
+
+    console.log('🔄 Sending fetch request...');
+
+    // FIXED: Added https:// protocol
+    const response = await fetch('https://admin.australiaimmigration.site/upload-application-letter', {
+      method: 'POST',
+      body: formData
+      // Don't set Content-Type header - let browser set it automatically for FormData
+    });
+
+    console.log('📨 Response status:', response.status);
+    console.log('📨 Response ok:', response.ok);
+
+    if (!response.ok) {
+      const errorResult = await response.json();
+      console.log('❌ Server error response:', errorResult);
+      throw new Error(errorResult.error || `Server error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('✅ Server response:', result);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Upload failed');
+    }
+
+    console.log('✅ File upload successful:', result);
+
+    // Now update Firebase with the file information
+    const applicationRef = doc(db, "applications", selectedApplication.id);
+    await updateDoc(applicationRef, {
+      applicationLetter: result.fileInfo.applicationLetter,
+      applicationLetterName: result.fileInfo.applicationLetterName,
+      applicationLetterType: result.fileInfo.applicationLetterType,
+      applicationLetterSize: result.fileInfo.applicationLetterSize,
+      applicationLetterPath: result.fileInfo.applicationLetterPath,
+      applicationLetterUploadedAt: result.fileInfo.applicationLetterUploadedAt,
+      updatedAt: new Date().toISOString()
+    });
+
+    // Update local state with new file info
+    const updatedApplication = {
+      ...selectedApplication,
+      ...result.fileInfo
+    };
+
+    setSelectedApplication(updatedApplication);
+    setEditableData(updatedApplication);
+    setApplications(prev => prev.map(app => 
+      app.id === selectedApplication.id ? updatedApplication : app
+    ));
+
+    alert('✅ Application letter uploaded successfully!');
+
+  } catch (error) {
+    console.error('❌ Upload error:', error);
+    alert('❌ Upload failed: ' + error.message);
+  } finally {
+    setActionLoading(false);
+    // Clear the file input
+    e.target.value = '';
+  }
+}}
+
+  disabled={actionLoading}
+>
+  <i className="fas fa-trash me-1"></i> Delete
+</Button>
+
+
                         </div>
                       </div>
                       

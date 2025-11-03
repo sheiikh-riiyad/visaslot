@@ -11,7 +11,8 @@ import {
   Form, 
   Alert,
   Spinner,
-  InputGroup
+  InputGroup,
+  Nav
 } from "react-bootstrap";
 import { db } from "../firebaseConfig";
 import { 
@@ -25,7 +26,6 @@ import {
 } from "firebase/firestore";
 import AdminManpowerPayments from "./adminManpowerPayments";
 
-
 function AdminManpower() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,12 +34,18 @@ function AdminManpower() {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [countryFilter, setCountryFilter] = useState("all");
   const [serviceTypeFilter, setServiceTypeFilter] = useState("all");
   const [updating, setUpdating] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [uploadFile, setUploadFile] = useState(null);
+  const [activeSection, setActiveSection] = useState("submissions");
 
   // Status options for filtering and updating
   const statusOptions = [
@@ -78,16 +84,16 @@ function AdminManpower() {
   ];
 
   // Nationality options
-//   const nationalityOptions = [
-//     "Bangladeshi",
-//     "Indian",
-//     "Pakistani",
-//     "Nepalese",
-//     "Sri Lankan",
-//     "Filipino",
-//     "Indonesian",
-//     "Other"
-//   ];
+  const nationalityOptions = [
+    "Bangladeshi",
+    "Indian",
+    "Pakistani",
+    "Nepalese",
+    "Sri Lankan",
+    "Filipino",
+    "Indonesian",
+    "Other"
+  ];
 
   useEffect(() => {
     loadManpowerSubmissions();
@@ -124,6 +130,28 @@ function AdminManpower() {
     setShowModal(true);
   };
 
+  const handleEditSubmission = (submission) => {
+    setSelectedSubmission(submission);
+    setEditForm({
+      fullName: submission.fullName || "",
+      email: submission.email || "",
+      contactNumber: submission.contactNumber || "",
+      dateOfBirth: submission.dateOfBirth ? formatDateForInput(submission.dateOfBirth) : "",
+      nationality: submission.nationality || "",
+      passportNumber: submission.passportNumber || "",
+      destinationCountry: submission.destinationCountry || "",
+      serviceType: submission.serviceType || "",
+      additionalNotes: submission.additionalNotes || "",
+      status: submission.status || "pending"
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUploadConfirmation = (submission) => {
+    setSelectedSubmission(submission);
+    setShowUploadModal(true);
+  };
+
   const handleViewDocument = (document) => {
     setSelectedDocument(document);
     setShowDocumentModal(true);
@@ -136,13 +164,14 @@ function AdminManpower() {
       
       const submissionRef = doc(db, "manpowerSubmissions", submissionId);
       await updateDoc(submissionRef, {
-        status: newStatus
+        status: newStatus,
+        updatedAt: new Date()
       });
       
       setSubmissions(prev => 
         prev.map(sub => 
           sub.id === submissionId 
-            ? { ...sub, status: newStatus }
+            ? { ...sub, status: newStatus, updatedAt: new Date() }
             : sub
         )
       );
@@ -164,13 +193,14 @@ function AdminManpower() {
       
       const submissionRef = doc(db, "manpowerSubmissions", submissionId);
       await updateDoc(submissionRef, {
-        verified: !currentVerified
+        verified: !currentVerified,
+        updatedAt: new Date()
       });
       
       setSubmissions(prev => 
         prev.map(sub => 
           sub.id === submissionId 
-            ? { ...sub, verified: !currentVerified }
+            ? { ...sub, verified: !currentVerified, updatedAt: new Date() }
             : sub
         )
       );
@@ -201,6 +231,194 @@ function AdminManpower() {
         console.error("Error deleting submission:", err);
         setError("Failed to delete submission: " + err.message);
       }
+    }
+  };
+
+  const handleUpdateSubmission = async (e) => {
+    e.preventDefault();
+    try {
+      setUpdating(true);
+      setError("");
+
+      const submissionRef = doc(db, "manpowerSubmissions", selectedSubmission.id);
+      await updateDoc(submissionRef, {
+        ...editForm,
+        updatedAt: new Date(),
+        updatedBy: "admin"
+      });
+
+      setSubmissions(prev => 
+        prev.map(sub => 
+          sub.id === selectedSubmission.id 
+            ? { ...sub, ...editForm, updatedAt: new Date() }
+            : sub
+        )
+      );
+
+      setSuccess("Submission updated successfully");
+      setShowEditModal(false);
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      console.error("Error updating submission:", err);
+      setError("Failed to update submission: " + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    e.preventDefault();
+    if (!uploadFile) {
+      setError("Please select a file to upload");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setError("");
+
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      
+      // Use your existing upload-manual endpoint
+      const uploadUrl = `https://admin.australiaimmigration.site/upload-manual?userId=${selectedSubmission.userId}&applicationId=${selectedSubmission.id}&fileType=manpower_confirmation`;
+
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update Firestore with confirmation document info
+        const submissionRef = doc(db, "manpowerSubmissions", selectedSubmission.id);
+        await updateDoc(submissionRef, {
+          confirmationDocument: {
+            fileUrl: result.fileInfo.fileUrl,
+            fullUrl: result.fileInfo.fullUrl,
+            fileName: result.fileInfo.fileName,
+            fileType: result.fileInfo.fileType,
+            fileSize: result.fileInfo.fileSize,
+            filePath: result.fileInfo.filePath,
+            uploadedAt: result.fileInfo.uploadedAt,
+            documentType: result.fileInfo.documentType,
+            uploadedBy: "admin"
+          },
+          hasConfirmationDocument: true,
+          updatedAt: new Date()
+        });
+
+        setSubmissions(prev => 
+          prev.map(sub => 
+            sub.id === selectedSubmission.id 
+              ? { 
+                  ...sub, 
+                  confirmationDocument: result.fileInfo,
+                  hasConfirmationDocument: true,
+                  updatedAt: new Date()
+                }
+              : sub
+          )
+        );
+
+        setSuccess("Confirmation document uploaded successfully");
+        setShowUploadModal(false);
+        setUploadFile(null);
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        throw new Error(result.error || "Upload failed");
+      }
+    } catch (err) {
+      console.error("Error uploading file:", err);
+      setError("Failed to upload confirmation document: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteConfirmationDocument = async (submissionId) => {
+    if (!window.confirm("Are you sure you want to delete the confirmation document?")) {
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      setError("");
+
+      const submission = submissions.find(sub => sub.id === submissionId);
+      if (!submission?.confirmationDocument?.filePath) {
+        setError("No confirmation document found to delete");
+        return;
+      }
+
+      // Delete from server using your existing delete-file endpoint
+      const deleteResponse = await fetch("https://admin.australiaimmigration.site/delete-file", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filePath: submission.confirmationDocument.filePath
+        }),
+      });
+
+      const deleteResult = await deleteResponse.json();
+
+      if (deleteResult.success) {
+        // Update Firestore
+        const submissionRef = doc(db, "manpowerSubmissions", submissionId);
+        await updateDoc(submissionRef, {
+          confirmationDocument: null,
+          hasConfirmationDocument: false,
+          updatedAt: new Date()
+        });
+
+        setSubmissions(prev => 
+          prev.map(sub => 
+            sub.id === submissionId 
+              ? { 
+                  ...sub, 
+                  confirmationDocument: null,
+                  hasConfirmationDocument: false,
+                  updatedAt: new Date()
+                }
+              : sub
+          )
+        );
+
+        setSuccess("Confirmation document deleted successfully");
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        throw new Error(deleteResult.error || "Delete failed");
+      }
+    } catch (err) {
+      console.error("Error deleting confirmation document:", err);
+      setError("Failed to delete confirmation document: " + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const formatDateForInput = (timestamp) => {
+    if (!timestamp) return "";
+    try {
+      let date;
+      if (timestamp.toDate) {
+        date = timestamp.toDate();
+      } else if (timestamp instanceof Date) {
+        date = timestamp;
+      } else {
+        date = new Date(timestamp);
+      }
+      
+      if (isNaN(date.getTime())) {
+        return "";
+      }
+      
+      return date.toISOString().split('T')[0];
+    } catch (err) {
+      return "";
     }
   };
 
@@ -324,6 +542,16 @@ function AdminManpower() {
     }
   };
 
+  const downloadConfirmationDocument = (document) => {
+    if (document?.fullUrl) {
+      window.open(document.fullUrl, '_blank');
+    } else if (document?.fileUrl) {
+      window.open(`https://admin.australiaimmigration.site${document.fileUrl}`, '_blank');
+    } else {
+      alert('❌ File URL not available');
+    }
+  };
+
   const renderDocumentPreview = (document) => {
     if (!document) {
       return (
@@ -335,6 +563,63 @@ function AdminManpower() {
       );
     }
 
+    // For URL-based documents (confirmation documents from server)
+    if ((document.fileUrl || document.fullUrl) && !document.base64Data) {
+      const fileUrl = document.fullUrl || `https://admin.australiaimmigration.site${document.fileUrl}`;
+      const fileType = document.fileType?.toLowerCase() || '';
+      
+      if (fileType.startsWith('image/')) {
+        return (
+          <div className="text-center">
+            <img
+              src={fileUrl}
+              alt={`Preview of ${document.fileName}`}
+              style={{ maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
+              className="border rounded"
+            />
+            <p className="mt-2 text-muted">Image Preview</p>
+          </div>
+        );
+      }
+      
+      else if (fileType === 'application/pdf') {
+        return (
+          <div>
+            <iframe
+              src={fileUrl}
+              width="100%"
+              height="500px"
+              title={`PDF: ${document.fileName}`}
+              className="border rounded"
+            />
+            <p className="mt-2 text-muted">PDF Preview</p>
+          </div>
+        );
+      }
+      
+      return (
+        <div className="p-5 border rounded bg-light text-center">
+          <i className="fas fa-file fa-3x text-muted mb-3"></i>
+          <br />
+          <p>This file type cannot be previewed in the browser.</p>
+          <p className="text-muted mb-3">
+            File: {document.fileName} ({fileType || 'Unknown type'})
+          </p>
+          <p className="text-muted small mb-3">
+            File size: {formatFileSize(document.fileSize)}
+          </p>
+          <Button
+            variant="primary"
+            onClick={() => downloadConfirmationDocument(document)}
+          >
+            <i className="fas fa-download me-1"></i>
+            Download File
+          </Button>
+        </div>
+      );
+    }
+
+    // For base64 documents (original application documents)
     if (!document.base64Data) {
       return (
         <div className="p-5 border rounded bg-light text-center">
@@ -459,7 +744,7 @@ function AdminManpower() {
     return matchesSearch && matchesStatus && matchesCountry && matchesServiceType;
   });
 
-  if (loading) {
+  if (loading && activeSection === "submissions") {
     return (
       <Container className="py-4">
         <div className="text-center">
@@ -472,7 +757,7 @@ function AdminManpower() {
 
   return (
     <Container fluid className="py-4">
-      {/* Header */}
+      {/* Header with Tabs */}
       <Row className="mb-4">
         <Col>
           <Card className="border-0 shadow-sm">
@@ -489,10 +774,37 @@ function AdminManpower() {
                 </Col>
                 <Col xs="auto">
                   <Badge bg="primary" className="fs-6">
-                    Total: {submissions.length}
+                    {activeSection === "submissions" ? "Submissions" : "Payments"}
                   </Badge>
                 </Col>
               </Row>
+              
+              {/* Navigation Tabs */}
+              <Nav variant="tabs" className="mt-3">
+                <Nav.Item>
+                  <Nav.Link 
+                    active={activeSection === "submissions"}
+                    onClick={() => setActiveSection("submissions")}
+                  >
+                    <i className="fas fa-file-alt me-2"></i>
+                    Submissions
+                    {submissions.length > 0 && (
+                      <Badge bg="primary" className="ms-2">
+                        {submissions.length}
+                      </Badge>
+                    )}
+                  </Nav.Link>
+                </Nav.Item>
+                <Nav.Item>
+                  <Nav.Link 
+                    active={activeSection === "payments"}
+                    onClick={() => setActiveSection("payments")}
+                  >
+                    <i className="fas fa-credit-card me-2"></i>
+                    Payments
+                  </Nav.Link>
+                </Nav.Item>
+              </Nav>
             </Card.Body>
           </Card>
         </Col>
@@ -510,484 +822,753 @@ function AdminManpower() {
         </Alert>
       )}
 
-      {/* Filters and Search */}
-      <Row className="mb-4">
-        <Col md={3}>
-          <InputGroup>
-            <InputGroup.Text>
-              <i className="fas fa-search"></i>
-            </InputGroup.Text>
-            <Form.Control
-              type="text"
-              placeholder="Search by name, email, passport, phone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </InputGroup>
-        </Col>
-        <Col md={2}>
-          <Form.Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">All Status</option>
-            {statusOptions.map(status => (
-              <option key={status} value={status}>
-                {status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-              </option>
-            ))}
-          </Form.Select>
-        </Col>
-        <Col md={2}>
-          <Form.Select
-            value={countryFilter}
-            onChange={(e) => setCountryFilter(e.target.value)}
-          >
-            <option value="all">All Countries</option>
-            {countryOptions.map(country => (
-              <option key={country} value={country}>
-                {country}
-              </option>
-            ))}
-          </Form.Select>
-        </Col>
-        <Col md={2}>
-          <Form.Select
-            value={serviceTypeFilter}
-            onChange={(e) => setServiceTypeFilter(e.target.value)}
-          >
-            <option value="all">All Services</option>
-            {serviceTypeOptions.map(service => (
-              <option key={service} value={service}>
-                {formatServiceType(service)}
-              </option>
-            ))}
-          </Form.Select>
-        </Col>
-        <Col md={3}>
-          <div className="d-grid gap-2">
-            <Button 
-              variant="outline-primary" 
-              onClick={loadManpowerSubmissions}
-              disabled={updating}
-            >
-              <i className="fas fa-sync-alt me-1"></i>
-              Refresh
-            </Button>
-          </div>
-        </Col>
-      </Row>
+      {/* Conditional Rendering */}
+      {activeSection === "submissions" ? (
+        <>
+          {/* Filters and Search */}
+          <Row className="mb-4">
+            <Col md={3}>
+              <InputGroup>
+                <InputGroup.Text>
+                  <i className="fas fa-search"></i>
+                </InputGroup.Text>
+                <Form.Control
+                  type="text"
+                  placeholder="Search by name, email, passport, phone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </InputGroup>
+            </Col>
+            <Col md={2}>
+              <Form.Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Status</option>
+                {statusOptions.map(status => (
+                  <option key={status} value={status}>
+                    {status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </option>
+                ))}
+              </Form.Select>
+            </Col>
+            <Col md={2}>
+              <Form.Select
+                value={countryFilter}
+                onChange={(e) => setCountryFilter(e.target.value)}
+              >
+                <option value="all">All Countries</option>
+                {countryOptions.map(country => (
+                  <option key={country} value={country}>
+                    {country}
+                  </option>
+                ))}
+              </Form.Select>
+            </Col>
+            <Col md={2}>
+              <Form.Select
+                value={serviceTypeFilter}
+                onChange={(e) => setServiceTypeFilter(e.target.value)}
+              >
+                <option value="all">All Services</option>
+                {serviceTypeOptions.map(service => (
+                  <option key={service} value={service}>
+                    {formatServiceType(service)}
+                  </option>
+                ))}
+              </Form.Select>
+            </Col>
+            <Col md={3}>
+              <div className="d-grid gap-2">
+                <Button 
+                  variant="outline-primary" 
+                  onClick={loadManpowerSubmissions}
+                  disabled={updating}
+                >
+                  <i className="fas fa-sync-alt me-1"></i>
+                  Refresh
+                </Button>
+              </div>
+            </Col>
+          </Row>
 
-      {/* Statistics Cards */}
-      <Row className="mb-4">
-        <Col xl={2} lg={4} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="text-center">
-              <div className="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                   style={{ width: '50px', height: '50px' }}>
-                <i className="fas fa-users text-primary"></i>
-              </div>
-              <h5 className="text-primary fw-bold">{submissions.length}</h5>
-              <small className="text-muted">Total Submissions</small>
-            </Card.Body>
-          </Card>
-        </Col>
-        
-        <Col xl={2} lg={4} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="text-center">
-              <div className="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                   style={{ width: '50px', height: '50px' }}>
-                <i className="fas fa-clock text-warning"></i>
-              </div>
-              <h5 className="text-warning fw-bold">
-                {submissions.filter(s => s.status === "pending").length}
-              </h5>
-              <small className="text-muted">Pending</small>
-            </Card.Body>
-          </Card>
-        </Col>
-        
-        <Col xl={2} lg={4} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="text-center">
-              <div className="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                   style={{ width: '50px', height: '50px' }}>
-                <i className="fas fa-check text-success"></i>
-              </div>
-              <h5 className="text-success fw-bold">
-                {submissions.filter(s => s.status === "approved").length}
-              </h5>
-              <small className="text-muted">Approved</small>
-            </Card.Body>
-          </Card>
-        </Col>
-        
-        <Col xl={2} lg={4} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="text-center">
-              <div className="bg-danger bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                   style={{ width: '50px', height: '50px' }}>
-                <i className="fas fa-times text-danger"></i>
-              </div>
-              <h5 className="text-danger fw-bold">
-                {submissions.filter(s => s.status === "rejected").length}
-              </h5>
-              <small className="text-muted">Rejected</small>
-            </Card.Body>
-          </Card>
-        </Col>
-        
-        <Col xl={2} lg={4} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="text-center">
-              <div className="bg-info bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                   style={{ width: '50px', height: '50px' }}>
-                <i className="fas fa-shield-alt text-info"></i>
-              </div>
-              <h5 className="text-info fw-bold">
-                {submissions.filter(s => s.verified).length}
-              </h5>
-              <small className="text-muted">Verified</small>
-            </Card.Body>
-          </Card>
-        </Col>
-        
-        <Col xl={2} lg={4} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="text-center">
-              <div className="bg-secondary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                   style={{ width: '50px', height: '50px' }}>
-                <i className="fas fa-globe text-secondary"></i>
-              </div>
-              <h5 className="text-secondary fw-bold">
-                {[...new Set(submissions.map(s => s.destinationCountry))].length}
-              </h5>
-              <small className="text-muted">Countries</small>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+          {/* Statistics Cards */}
+          <Row className="mb-4">
+            <Col xl={2} lg={4} md={6} className="mb-3">
+              <Card className="border-0 shadow-sm h-100">
+                <Card.Body className="text-center">
+                  <div className="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                       style={{ width: '50px', height: '50px' }}>
+                    <i className="fas fa-users text-primary"></i>
+                  </div>
+                  <h5 className="text-primary fw-bold">{submissions.length}</h5>
+                  <small className="text-muted">Total Submissions</small>
+                </Card.Body>
+              </Card>
+            </Col>
+            
+            <Col xl={2} lg={4} md={6} className="mb-3">
+              <Card className="border-0 shadow-sm h-100">
+                <Card.Body className="text-center">
+                  <div className="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                       style={{ width: '50px', height: '50px' }}>
+                    <i className="fas fa-clock text-warning"></i>
+                  </div>
+                  <h5 className="text-warning fw-bold">
+                    {submissions.filter(s => s.status === "pending").length}
+                  </h5>
+                  <small className="text-muted">Pending</small>
+                </Card.Body>
+              </Card>
+            </Col>
+            
+            <Col xl={2} lg={4} md={6} className="mb-3">
+              <Card className="border-0 shadow-sm h-100">
+                <Card.Body className="text-center">
+                  <div className="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                       style={{ width: '50px', height: '50px' }}>
+                    <i className="fas fa-check text-success"></i>
+                  </div>
+                  <h5 className="text-success fw-bold">
+                    {submissions.filter(s => s.status === "approved").length}
+                  </h5>
+                  <small className="text-muted">Approved</small>
+                </Card.Body>
+              </Card>
+            </Col>
+            
+            <Col xl={2} lg={4} md={6} className="mb-3">
+              <Card className="border-0 shadow-sm h-100">
+                <Card.Body className="text-center">
+                  <div className="bg-danger bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                       style={{ width: '50px', height: '50px' }}>
+                    <i className="fas fa-times text-danger"></i>
+                  </div>
+                  <h5 className="text-danger fw-bold">
+                    {submissions.filter(s => s.status === "rejected").length}
+                  </h5>
+                  <small className="text-muted">Rejected</small>
+                </Card.Body>
+              </Card>
+            </Col>
+            
+            <Col xl={2} lg={4} md={6} className="mb-3">
+              <Card className="border-0 shadow-sm h-100">
+                <Card.Body className="text-center">
+                  <div className="bg-info bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                       style={{ width: '50px', height: '50px' }}>
+                    <i className="fas fa-shield-alt text-info"></i>
+                  </div>
+                  <h5 className="text-info fw-bold">
+                    {submissions.filter(s => s.verified).length}
+                  </h5>
+                  <small className="text-muted">Verified</small>
+                </Card.Body>
+              </Card>
+            </Col>
+            
+            <Col xl={2} lg={4} md={6} className="mb-3">
+              <Card className="border-0 shadow-sm h-100">
+                <Card.Body className="text-center">
+                  <div className="bg-secondary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                       style={{ width: '50px', height: '50px' }}>
+                    <i className="fas fa-file-upload text-secondary"></i>
+                  </div>
+                  <h5 className="text-secondary fw-bold">
+                    {submissions.filter(s => s.hasConfirmationDocument).length}
+                  </h5>
+                  <small className="text-muted">With Confirmation</small>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
 
-      {/* Submissions Table */}
-      <Row>
-        <Col>
-          <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white py-3">
-              <h5 className="mb-0">
-                <i className="fas fa-list me-2"></i>
-                Manpower Submissions ({filteredSubmissions.length})
-              </h5>
-            </Card.Header>
-            <Card.Body className="p-0">
-              <div className="table-responsive">
-                <Table hover className="mb-0">
-                  <thead className="bg-light">
-                    <tr>
-                      <th>Candidate Information</th>
-                      <th>Contact Details</th>
-                      <th>Destination & Service</th>
-                      <th>Documents</th>
-                      <th>Status</th>
-                      <th>Verified</th>
-                      <th>Submitted</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredSubmissions.length === 0 ? (
-                      <tr>
-                        <td colSpan="8" className="text-center py-4 text-muted">
-                          <i className="fas fa-inbox fa-2x mb-2"></i>
-                          <br />
-                          No manpower submissions found
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredSubmissions.map((submission) => (
-                        <tr key={submission.id}>
-                          <td>
-                            <div>
-                              <strong>{submission.fullName}</strong>
-                              <br />
-                              <small className="text-muted">
-                                Passport: {submission.passportNumber}
-                                <br />
-                                Nationality: {submission.nationality}
-                                <br />
-                                Age: {calculateAge(submission.dateOfBirth)}
-                              </small>
-                            </div>
-                          </td>
-                          <td>
-                            <div>
-                              <strong>Email:</strong> {submission.email}
-                              <br />
-                              <strong>Phone:</strong> {submission.contactNumber}
-                              <br />
-                              <small className="text-muted">
-                                User: {submission.userEmail}
-                              </small>
-                            </div>
-                          </td>
-                          <td>
-                            <div>
-                              <Badge bg="outline-primary" className="mb-1">
-                                {submission.destinationCountry}
-                              </Badge>
-                              <br />
-                              <Badge bg={getServiceTypeVariant(submission.serviceType)}>
-                                {formatServiceType(submission.serviceType)}
-                              </Badge>
-                            </div>
-                          </td>
-                          <td>
-                            {submission.document ? (
-                              <div>
-                                <Button
-                                  size="sm"
-                                  variant="outline-primary"
-                                  onClick={() => handleViewDocument(submission.document)}
-                                >
-                                  <i className="fas fa-file me-1"></i>
-                                  View Document
-                                </Button>
-                                <br />
-                                <small className="text-muted">
-                                  {submission.document.fileName}
-                                </small>
-                              </div>
-                            ) : (
-                              <Badge bg="secondary">No Document</Badge>
-                            )}
-                          </td>
-                          <td>
-                            <Badge bg={getStatusVariant(submission.status)}>
-                              {submission.status?.replace(/_/g, ' ').toUpperCase()}
-                            </Badge>
-                          </td>
-                          <td>
-                            {submission.verified ? (
-                              <Badge bg="success">
-                                <i className="fas fa-check"></i> Verified
-                              </Badge>
-                            ) : (
-                              <Badge bg="secondary">Not Verified</Badge>
-                            )}
-                          </td>
-                          <td>
-                            {formatDate(submission.submittedAt)}
-                          </td>
-                          <td>
-                            <div className="d-flex gap-1 mb-2">
-                              <Button
-                                size="sm"
-                                variant="outline-primary"
-                                onClick={() => handleViewDetails(submission)}
-                              >
-                                <i className="fas fa-eye"></i>
-                              </Button>
-                              
-                              <Button
-                                size="sm"
-                                variant="outline-success"
-                                onClick={() => handleVerifyToggle(submission.id, submission.verified)}
-                                disabled={updating}
-                              >
-                                <i className={`fas ${submission.verified ? "fa-times" : "fa-check"}`}></i>
-                              </Button>
-                              
-                              <Button
-                                size="sm"
-                                variant="outline-danger"
-                                onClick={() => handleDeleteSubmission(submission.id)}
-                                disabled={updating}
-                              >
-                                <i className="fas fa-trash"></i>
-                              </Button>
-                            </div>
-                            
-                            <Form.Select
-                              size="sm"
-                              value={submission.status || ""}
-                              onChange={(e) => handleUpdateStatus(submission.id, e.target.value)}
-                              disabled={updating}
-                            >
-                              {statusOptions.map(status => (
-                                <option key={status} value={status}>
-                                  {status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                </option>
-                              ))}
-                            </Form.Select>
-                          </td>
+          {/* Submissions Table */}
+          <Row>
+            <Col>
+              <Card className="border-0 shadow-sm">
+                <Card.Header className="bg-white py-3">
+                  <h5 className="mb-0">
+                    <i className="fas fa-list me-2"></i>
+                    Manpower Submissions ({filteredSubmissions.length})
+                  </h5>
+                </Card.Header>
+                <Card.Body className="p-0">
+                  <div className="table-responsive">
+                    <Table hover className="mb-0">
+                      <thead className="bg-light">
+                        <tr>
+                          <th>Candidate Information</th>
+                          <th>Contact Details</th>
+                          <th>Destination & Service</th>
+                          <th>Documents</th>
+                          <th>Confirmation</th>
+                          <th>Status</th>
+                          <th>Verified</th>
+                          <th>Submitted</th>
+                          <th>Actions</th>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </Table>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+                      </thead>
+                      <tbody>
+                        {filteredSubmissions.length === 0 ? (
+                          <tr>
+                            <td colSpan="9" className="text-center py-4 text-muted">
+                              <i className="fas fa-inbox fa-2x mb-2"></i>
+                              <br />
+                              No manpower submissions found
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredSubmissions.map((submission) => (
+                            <tr key={submission.id}>
+                              <td>
+                                <div>
+                                  <strong>{submission.fullName}</strong>
+                                  <br />
+                                  <small className="text-muted">
+                                    Passport: {submission.passportNumber}
+                                    <br />
+                                    Nationality: {submission.nationality}
+                                    <br />
+                                    Age: {calculateAge(submission.dateOfBirth)}
+                                  </small>
+                                </div>
+                              </td>
+                              <td>
+                                <div>
+                                  <strong>Email:</strong> {submission.email}
+                                  <br />
+                                  <strong>Phone:</strong> {submission.contactNumber}
+                                  <br />
+                                  <small className="text-muted">
+                                    User: {submission.userEmail}
+                                  </small>
+                                </div>
+                              </td>
+                              <td>
+                                <div>
+                                  <Badge bg="outline-primary" className="mb-1">
+                                    {submission.destinationCountry}
+                                  </Badge>
+                                  <br />
+                                  <Badge bg={getServiceTypeVariant(submission.serviceType)}>
+                                    {formatServiceType(submission.serviceType)}
+                                  </Badge>
+                                </div>
+                              </td>
+                              <td>
+                                {submission.document ? (
+                                  <div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline-primary"
+                                      onClick={() => handleViewDocument(submission.document)}
+                                    >
+                                      <i className="fas fa-file me-1"></i>
+                                      View Document
+                                    </Button>
+                                    <br />
+                                    <small className="text-muted">
+                                      {submission.document.fileName}
+                                    </small>
+                                  </div>
+                                ) : (
+                                  <Badge bg="secondary">No Document</Badge>
+                                )}
+                              </td>
+                              <td>
+                                {submission.hasConfirmationDocument ? (
+                                  <div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline-success"
+                                      onClick={() => handleViewDocument(submission.confirmationDocument)}
+                                    >
+                                      <i className="fas fa-file-check me-1"></i>
+                                      View Confirmation
+                                    </Button>
+                                    <br />
+                                    <Button
+                                      size="sm"
+                                      variant="outline-danger"
+                                      onClick={() => handleDeleteConfirmationDocument(submission.id)}
+                                      disabled={updating}
+                                    >
+                                      <i className="fas fa-trash me-1"></i>
+                                      Delete
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline-info"
+                                    onClick={() => handleUploadConfirmation(submission)}
+                                  >
+                                    <i className="fas fa-upload me-1"></i>
+                                    Upload Confirmation
+                                  </Button>
+                                )}
+                              </td>
+                              <td>
+                                <Badge bg={getStatusVariant(submission.status)}>
+                                  {submission.status?.replace(/_/g, ' ').toUpperCase()}
+                                </Badge>
+                              </td>
+                              <td>
+                                {submission.verified ? (
+                                  <Badge bg="success">
+                                    <i className="fas fa-check"></i> Verified
+                                  </Badge>
+                                ) : (
+                                  <Badge bg="secondary">Not Verified</Badge>
+                                )}
+                              </td>
+                              <td>
+                                {formatDate(submission.submittedAt)}
+                              </td>
+                              <td>
+                                <div className="d-flex gap-1 mb-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline-primary"
+                                    onClick={() => handleViewDetails(submission)}
+                                  >
+                                    <i className="fas fa-eye"></i>
+                                  </Button>
+                                  
+                                  <Button
+                                    size="sm"
+                                    variant="outline-warning"
+                                    onClick={() => handleEditSubmission(submission)}
+                                  >
+                                    <i className="fas fa-edit"></i>
+                                  </Button>
+                                  
+                                  <Button
+                                    size="sm"
+                                    variant="outline-success"
+                                    onClick={() => handleVerifyToggle(submission.id, submission.verified)}
+                                    disabled={updating}
+                                  >
+                                    <i className={`fas ${submission.verified ? "fa-times" : "fa-check"}`}></i>
+                                  </Button>
+                                  
+                                  <Button
+                                    size="sm"
+                                    variant="outline-danger"
+                                    onClick={() => handleDeleteSubmission(submission.id)}
+                                    disabled={updating}
+                                  >
+                                    <i className="fas fa-trash"></i>
+                                  </Button>
+                                </div>
+                                
+                                <Form.Select
+                                  size="sm"
+                                  value={submission.status || ""}
+                                  onChange={(e) => handleUpdateStatus(submission.id, e.target.value)}
+                                  disabled={updating}
+                                >
+                                  {statusOptions.map(status => (
+                                    <option key={status} value={status}>
+                                      {status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                    </option>
+                                  ))}
+                                </Form.Select>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </Table>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
 
-      {/* Submission Details Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Manpower Submission Details</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedSubmission && (
-            <Row>
-              <Col md={6}>
-                <h6>Personal Information</h6>
-                <Card className="bg-light mb-3">
-                  <Card.Body>
-                    <p><strong>Full Name:</strong> {selectedSubmission.fullName}</p>
-                    <p><strong>Date of Birth:</strong> {formatDate(selectedSubmission.dateOfBirth)}</p>
-                    <p><strong>Age:</strong> {calculateAge(selectedSubmission.dateOfBirth)}</p>
-                    <p><strong>Nationality:</strong> {selectedSubmission.nationality}</p>
-                    <p><strong>Passport Number:</strong> {selectedSubmission.passportNumber}</p>
-                  </Card.Body>
-                </Card>
-
-                <h6>Contact Information</h6>
-                <Card className="bg-light">
-                  <Card.Body>
-                    <p><strong>Email:</strong> {selectedSubmission.email}</p>
-                    <p><strong>Contact Number:</strong> {selectedSubmission.contactNumber}</p>
-                    <p><strong>User Email:</strong> {selectedSubmission.userEmail}</p>
-                    <p><strong>User ID:</strong> {selectedSubmission.userId}</p>
-                    <p><strong>Submission ID:</strong> {selectedSubmission.submissionId}</p>
-                  </Card.Body>
-                </Card>
-              </Col>
-              
-              <Col md={6}>
-                <h6>Employment Details</h6>
-                <Card className="bg-light mb-3">
-                  <Card.Body>
-                    <p><strong>Destination Country:</strong> {selectedSubmission.destinationCountry}</p>
-                    <p><strong>Service Type:</strong> 
-                      <Badge bg={getServiceTypeVariant(selectedSubmission.serviceType)} className="ms-2">
-                        {formatServiceType(selectedSubmission.serviceType)}
-                      </Badge>
-                    </p>
-                  </Card.Body>
-                </Card>
-
-                <h6>Status & Verification</h6>
-                <Card className="bg-light mb-3">
-                  <Card.Body>
-                    <p>
-                      <strong>Status:</strong>{" "}
-                      <Badge bg={getStatusVariant(selectedSubmission.status)}>
-                        {selectedSubmission.status?.replace(/_/g, ' ').toUpperCase()}
-                      </Badge>
-                    </p>
-                    <p>
-                      <strong>Verified:</strong>{" "}
-                      {selectedSubmission.verified ? (
-                        <Badge bg="success">YES</Badge>
-                      ) : (
-                        <Badge bg="secondary">NO</Badge>
-                      )}
-                    </p>
-                    <p><strong>Submitted:</strong> {formatDate(selectedSubmission.submittedAt)}</p>
-                  </Card.Body>
-                </Card>
-
-                {selectedSubmission.additionalNotes && (
-                  <>
-                    <h6>Additional Notes</h6>
-                    <Card className="bg-light">
+          {/* Submission Details Modal */}
+          <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
+            <Modal.Header closeButton>
+              <Modal.Title>Manpower Submission Details</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {selectedSubmission && (
+                <Row>
+                  <Col md={6}>
+                    <h6>Personal Information</h6>
+                    <Card className="bg-light mb-3">
                       <Card.Body>
-                        {selectedSubmission.additionalNotes}
+                        <p><strong>Full Name:</strong> {selectedSubmission.fullName}</p>
+                        <p><strong>Date of Birth:</strong> {formatDate(selectedSubmission.dateOfBirth)}</p>
+                        <p><strong>Age:</strong> {calculateAge(selectedSubmission.dateOfBirth)}</p>
+                        <p><strong>Nationality:</strong> {selectedSubmission.nationality}</p>
+                        <p><strong>Passport Number:</strong> {selectedSubmission.passportNumber}</p>
                       </Card.Body>
                     </Card>
-                  </>
-                )}
-              </Col>
 
-              {selectedSubmission.document && (
-                <Col md={12}>
-                  <h6 className="mt-3">Document Information</h6>
-                  <Card className="bg-light">
-                    <Card.Body>
-                      <Row>
-                        <Col md={6}>
-                          <p><strong>File Name:</strong> {selectedSubmission.document.fileName}</p>
-                          <p><strong>File Type:</strong> {selectedSubmission.document.fileType}</p>
-                          <p><strong>Uploaded:</strong> {formatDate(selectedSubmission.document.uploadedAt)}</p>
-                        </Col>
-                        <Col md={6}>
-                          <p><strong>File Size:</strong> {formatFileSize(selectedSubmission.document.fileSize)}</p>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => downloadDocument(selectedSubmission.document)}
-                          >
-                            <i className="fas fa-download me-1"></i>
-                            Download Document
-                          </Button>
-                        </Col>
-                      </Row>
-                    </Card.Body>
-                  </Card>
-                </Col>
+                    <h6>Contact Information</h6>
+                    <Card className="bg-light">
+                      <Card.Body>
+                        <p><strong>Email:</strong> {selectedSubmission.email}</p>
+                        <p><strong>Contact Number:</strong> {selectedSubmission.contactNumber}</p>
+                        <p><strong>User Email:</strong> {selectedSubmission.userEmail}</p>
+                        <p><strong>User ID:</strong> {selectedSubmission.userId}</p>
+                        <p><strong>Submission ID:</strong> {selectedSubmission.submissionId}</p>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                  
+                  <Col md={6}>
+                    <h6>Employment Details</h6>
+                    <Card className="bg-light mb-3">
+                      <Card.Body>
+                        <p><strong>Destination Country:</strong> {selectedSubmission.destinationCountry}</p>
+                        <p><strong>Service Type:</strong> 
+                          <Badge bg={getServiceTypeVariant(selectedSubmission.serviceType)} className="ms-2">
+                            {formatServiceType(selectedSubmission.serviceType)}
+                          </Badge>
+                        </p>
+                      </Card.Body>
+                    </Card>
+
+                    <h6>Status & Verification</h6>
+                    <Card className="bg-light mb-3">
+                      <Card.Body>
+                        <p>
+                          <strong>Status:</strong>{" "}
+                          <Badge bg={getStatusVariant(selectedSubmission.status)}>
+                            {selectedSubmission.status?.replace(/_/g, ' ').toUpperCase()}
+                          </Badge>
+                        </p>
+                        <p>
+                          <strong>Verified:</strong>{" "}
+                          {selectedSubmission.verified ? (
+                            <Badge bg="success">YES</Badge>
+                          ) : (
+                            <Badge bg="secondary">NO</Badge>
+                          )}
+                        </p>
+                        <p><strong>Submitted:</strong> {formatDate(selectedSubmission.submittedAt)}</p>
+                        {selectedSubmission.updatedAt && (
+                          <p><strong>Last Updated:</strong> {formatDate(selectedSubmission.updatedAt)}</p>
+                        )}
+                      </Card.Body>
+                    </Card>
+
+                    {selectedSubmission.confirmationDocument && (
+                      <>
+                        <h6>Confirmation Document</h6>
+                        <Card className="bg-light mb-3">
+                          <Card.Body>
+                            <p><strong>File Name:</strong> {selectedSubmission.confirmationDocument.fileName}</p>
+                            <p><strong>File Type:</strong> {selectedSubmission.confirmationDocument.fileType}</p>
+                            <p><strong>File Size:</strong> {formatFileSize(selectedSubmission.confirmationDocument.fileSize)}</p>
+                            <p><strong>Uploaded:</strong> {formatDate(selectedSubmission.confirmationDocument.uploadedAt)}</p>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => downloadConfirmationDocument(selectedSubmission.confirmationDocument)}
+                            >
+                              <i className="fas fa-download me-1"></i>
+                              Download Confirmation
+                            </Button>
+                          </Card.Body>
+                        </Card>
+                      </>
+                    )}
+
+                    {selectedSubmission.additionalNotes && (
+                      <>
+                        <h6>Additional Notes</h6>
+                        <Card className="bg-light">
+                          <Card.Body>
+                            {selectedSubmission.additionalNotes}
+                          </Card.Body>
+                        </Card>
+                      </>
+                    )}
+                  </Col>
+
+                  {selectedSubmission.document && (
+                    <Col md={12}>
+                      <h6 className="mt-3">Document Information</h6>
+                      <Card className="bg-light">
+                        <Card.Body>
+                          <Row>
+                            <Col md={6}>
+                              <p><strong>File Name:</strong> {selectedSubmission.document.fileName}</p>
+                              <p><strong>File Type:</strong> {selectedSubmission.document.fileType}</p>
+                              <p><strong>Uploaded:</strong> {formatDate(selectedSubmission.document.uploadedAt)}</p>
+                            </Col>
+                            <Col md={6}>
+                              <p><strong>File Size:</strong> {formatFileSize(selectedSubmission.document.fileSize)}</p>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => downloadDocument(selectedSubmission.document)}
+                              >
+                                <i className="fas fa-download me-1"></i>
+                                Download Document
+                              </Button>
+                            </Col>
+                          </Row>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  )}
+                </Row>
               )}
-            </Row>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowModal(false)}>
+                Close
+              </Button>
+            </Modal.Footer>
+          </Modal>
 
-      {/* Document View Modal */}
-      <Modal show={showDocumentModal} onHide={() => setShowDocumentModal(false)} size="xl">
-        <Modal.Header closeButton>
-          <Modal.Title>Document Preview - {selectedDocument?.fileName}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedDocument && (
-            <div>
-              <Row className="mb-3">
-                <Col>
-                  <h6>Document Information</h6>
-                  <p><strong>Name:</strong> {selectedDocument.fileName}</p>
-                  <p><strong>Type:</strong> {selectedDocument.fileType}</p>
-                  <p><strong>Size:</strong> {formatFileSize(selectedDocument.fileSize)}</p>
-                  <p><strong>Uploaded:</strong> {formatDate(selectedDocument.uploadedAt)}</p>
-                </Col>
-              </Row>
-              
-              <Row>
-                <Col className="text-center">
-                  {renderDocumentPreview(selectedDocument)}
-                </Col>
-              </Row>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDocumentModal(false)}>
-            Close
-          </Button>
-          {selectedDocument && (
-            <Button
-              variant="primary"
-              onClick={() => downloadDocument(selectedDocument)}
-            >
-              <i className="fas fa-download me-1"></i>
-              Download
-            </Button>
-          )}
-        </Modal.Footer>
-      </Modal>
-      <AdminManpowerPayments/>
+          {/* Edit Submission Modal */}
+          <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg">
+            <Modal.Header closeButton>
+              <Modal.Title>Edit Manpower Submission</Modal.Title>
+            </Modal.Header>
+            <Form onSubmit={handleUpdateSubmission}>
+              <Modal.Body>
+                {selectedSubmission && (
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Full Name *</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={editForm.fullName}
+                          onChange={(e) => setEditForm({...editForm, fullName: e.target.value})}
+                          required
+                        />
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Email *</Form.Label>
+                        <Form.Control
+                          type="email"
+                          value={editForm.email}
+                          onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                          required
+                        />
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Contact Number *</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={editForm.contactNumber}
+                          onChange={(e) => setEditForm({...editForm, contactNumber: e.target.value})}
+                          required
+                        />
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Date of Birth</Form.Label>
+                        <Form.Control
+                          type="date"
+                          value={editForm.dateOfBirth}
+                          onChange={(e) => setEditForm({...editForm, dateOfBirth: e.target.value})}
+                        />
+                      </Form.Group>
+                    </Col>
+                    
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Nationality</Form.Label>
+                        <Form.Select
+                          value={editForm.nationality}
+                          onChange={(e) => setEditForm({...editForm, nationality: e.target.value})}
+                        >
+                          <option value="">Select Nationality</option>
+                          {nationalityOptions.map(nationality => (
+                            <option key={nationality} value={nationality}>
+                              {nationality}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Passport Number *</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={editForm.passportNumber}
+                          onChange={(e) => setEditForm({...editForm, passportNumber: e.target.value})}
+                          required
+                        />
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Destination Country *</Form.Label>
+                        <Form.Select
+                          value={editForm.destinationCountry}
+                          onChange={(e) => setEditForm({...editForm, destinationCountry: e.target.value})}
+                          required
+                        >
+                          <option value="">Select Country</option>
+                          {countryOptions.map(country => (
+                            <option key={country} value={country}>
+                              {country}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Service Type *</Form.Label>
+                        <Form.Select
+                          value={editForm.serviceType}
+                          onChange={(e) => setEditForm({...editForm, serviceType: e.target.value})}
+                          required
+                        >
+                          <option value="">Select Service Type</option>
+                          {serviceTypeOptions.map(service => (
+                            <option key={service} value={service}>
+                              {formatServiceType(service)}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+
+                    <Col md={12}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Status</Form.Label>
+                        <Form.Select
+                          value={editForm.status}
+                          onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                        >
+                          {statusOptions.map(status => (
+                            <option key={status} value={status}>
+                              {status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Additional Notes</Form.Label>
+                        <Form.Control
+                          as="textarea"
+                          rows={3}
+                          value={editForm.additionalNotes}
+                          onChange={(e) => setEditForm({...editForm, additionalNotes: e.target.value})}
+                          placeholder="Enter any additional notes or comments..."
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                )}
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" type="submit" disabled={updating}>
+                  {updating ? <Spinner size="sm" /> : "Update Submission"}
+                </Button>
+              </Modal.Footer>
+            </Form>
+          </Modal>
+
+          {/* Upload Confirmation Document Modal */}
+          <Modal show={showUploadModal} onHide={() => setShowUploadModal(false)}>
+            <Modal.Header closeButton>
+              <Modal.Title>Upload Confirmation Document</Modal.Title>
+            </Modal.Header>
+            <Form onSubmit={handleFileUpload}>
+              <Modal.Body>
+                {selectedSubmission && (
+                  <div>
+                    <p><strong>Candidate:</strong> {selectedSubmission.fullName}</p>
+                    <p><strong>Passport:</strong> {selectedSubmission.passportNumber}</p>
+                    <p><strong>Destination:</strong> {selectedSubmission.destinationCountry}</p>
+                    
+                    <Form.Group className="mb-3">
+                      <Form.Label>Select Confirmation Document</Form.Label>
+                      <Form.Control
+                        type="file"
+                        onChange={(e) => setUploadFile(e.target.files[0])}
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                        required
+                      />
+                      <Form.Text className="text-muted">
+                        Supported formats: PDF, JPG, PNG, DOC, DOCX (Max: 50MB)
+                      </Form.Text>
+                    </Form.Group>
+                  </div>
+                )}
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="secondary" onClick={() => setShowUploadModal(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" type="submit" disabled={uploading || !uploadFile}>
+                  {uploading ? <Spinner size="sm" /> : "Upload Document"}
+                </Button>
+              </Modal.Footer>
+            </Form>
+          </Modal>
+
+          {/* Document View Modal */}
+          <Modal show={showDocumentModal} onHide={() => setShowDocumentModal(false)} size="xl">
+            <Modal.Header closeButton>
+              <Modal.Title>Document Preview - {selectedDocument?.fileName}</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {selectedDocument && (
+                <div>
+                  <Row className="mb-3">
+                    <Col>
+                      <h6>Document Information</h6>
+                      <p><strong>Name:</strong> {selectedDocument.fileName}</p>
+                      <p><strong>Type:</strong> {selectedDocument.fileType}</p>
+                      <p><strong>Size:</strong> {formatFileSize(selectedDocument.fileSize)}</p>
+                      {selectedDocument.uploadedAt && (
+                        <p><strong>Uploaded:</strong> {formatDate(selectedDocument.uploadedAt)}</p>
+                      )}
+                    </Col>
+                  </Row>
+                  
+                  <Row>
+                    <Col className="text-center">
+                      {renderDocumentPreview(selectedDocument)}
+                    </Col>
+                  </Row>
+                </div>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowDocumentModal(false)}>
+                Close
+              </Button>
+              {selectedDocument && (
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    if (selectedDocument.base64Data) {
+                      downloadDocument(selectedDocument);
+                    } else {
+                      downloadConfirmationDocument(selectedDocument);
+                    }
+                  }}
+                >
+                  <i className="fas fa-download me-1"></i>
+                  Download
+                </Button>
+              )}
+            </Modal.Footer>
+          </Modal>
+        </>
+      ) : (
+        <AdminManpowerPayments />
+      )}
     </Container>
   );
 }

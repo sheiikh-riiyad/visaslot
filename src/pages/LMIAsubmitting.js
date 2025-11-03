@@ -51,12 +51,9 @@ function LMIASubmission() {
     province: "",
     wage: "",
     documentFile: null,
-    documentBase64: null,
     documentPreview: null,
     additionalNotes: ""
   });
-
-  
 
   const nocCodes = [
     "0001 - Senior Management",
@@ -149,60 +146,139 @@ function LMIASubmission() {
     }));
   };
 
-  // Convert file to base64
-  const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = error => reject(error);
-    });
-  };
+  // File upload handler for LMIA documents
+  const handleFileUpload = async (e, documentType) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  const handleFileChange = async (e) => {
-    const { name, files } = e.target;
-    const file = files[0];
-    
-    if (file) {
-      // Validate file type
-      const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-      if (!validTypes.includes(file.type)) {
-        showMessage("❌ Please upload only JPG, PNG, or PDF files", "danger");
-        return;
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      showMessage("❌ Please upload only JPG, PNG, or PDF files", "danger");
+      return;
+    }
+
+    // Validate file size (10MB max for server upload)
+    if (file.size > 10 * 1024 * 1024) {
+      showMessage("❌ File size must be less than 10MB", "danger");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Create FormData for file upload to server
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Use localhost:4000 for development
+      const uploadUrl = `http://localhost:4000/upload-manual?userId=${encodeURIComponent(auth.currentUser.uid)}&applicationId=${encodeURIComponent(formData.certificateNumber)}&fileType=lmia_document`;
+      
+      console.log(`Uploading LMIA document to:`, uploadUrl);
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData
+      });
+
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error response:', errorText);
+        throw new Error(`Upload failed: ${response.status}`);
       }
 
-      // Validate file size (2MB max for base64 storage)
-      if (file.size > 2 * 1024 * 1024) {
-        showMessage("❌ File size must be less than 2MB for base64 storage", "danger");
-        return;
+      const result = await response.json();
+      console.log('Server response:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Upload failed');
       }
 
-      try {
-        setLoading(true);
-        // Convert file to base64
-        const base64Data = await fileToBase64(file);
-        
-        setFormData(prev => ({
-          ...prev,
-          [name]: file,
-          documentBase64: base64Data,
-          documentPreview: file.type.startsWith('image/') ? base64Data : null
-        }));
-
-      } catch (error) {
-        console.error("Error converting file to base64:", error);
-        showMessage("❌ Error processing file. Please try again.", "danger");
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      // Clear file data if no file selected
+      // Store file info in form data
       setFormData(prev => ({
         ...prev,
-        [name]: null,
-        documentBase64: null,
-        documentPreview: null
+        documentFile: file,
+        documentPreview: file.type.startsWith('image/') ? result.fileInfo.fullUrl : null,
+        uploadedFileInfo: result.fileInfo
       }));
+
+      showMessage("✅ LMIA document uploaded successfully!");
+      
+    } catch (error) {
+      console.error(`Error uploading LMIA document:`, error);
+      showMessage(`❌ Error uploading file: ${error.message}`, "danger");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // File delete handler
+  const handleFileDelete = async () => {
+    if (!formData.uploadedFileInfo) return;
+
+    try {
+      setLoading(true);
+      
+      // Call server API to delete file
+      const response = await fetch('http://localhost:4000/delete-file', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filePath: formData.uploadedFileInfo.filePath
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        console.warn('File not found on server, continuing with cleanup');
+      }
+      
+      // Clear file from form data
+      setFormData(prev => ({
+        ...prev,
+        documentFile: null,
+        documentPreview: null,
+        uploadedFileInfo: null
+      }));
+      
+      showMessage("File removed successfully!");
+    } catch (error) {
+      console.error("Error removing file:", error);
+      showMessage("Error removing file: " + error.message, "danger");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // File view/download functions
+  const downloadFile = (fileData) => {
+    if (fileData?.fullUrl) {
+      const link = document.createElement('a');
+      link.href = fileData.fullUrl;
+      link.download = fileData.fileName || 'lmia-document';
+      link.click();
+    } else if (fileData?.fileUrl) {
+      const link = document.createElement('a');
+      link.href = `http://localhost:4000${fileData.fileUrl}`;
+      link.download = fileData.fileName || 'lmia-document';
+      link.click();
+    } else {
+      alert('❌ File URL not available');
+    }
+  };
+
+  const viewFile = (fileData) => {
+    if (fileData?.fullUrl) {
+      window.open(fileData.fullUrl, '_blank');
+    } else if (fileData?.fileUrl) {
+      window.open(`http://localhost:4000${fileData.fileUrl}`, '_blank');
+    } else {
+      alert('❌ File URL not available');
     }
   };
 
@@ -210,17 +286,10 @@ function LMIASubmission() {
     if (formData.documentPreview) {
       setPreviewImage(formData.documentPreview);
       setShowPreview(true);
+    } else if (formData.uploadedFileInfo?.fullUrl) {
+      setPreviewImage(formData.uploadedFileInfo.fullUrl);
+      setShowPreview(true);
     }
-  };
-
-  // Function to download base64 document
-  const downloadDocument = (base64Data, fileName) => {
-    const link = document.createElement('a');
-    link.href = base64Data;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const handleSubmit = async (e) => {
@@ -260,12 +329,14 @@ function LMIASubmission() {
       }, 200);
 
       // Prepare document data only if file exists
-      const documentData = formData.documentFile ? {
-        fileName: formData.documentFile.name,
-        fileType: formData.documentFile.type,
-        fileSize: formData.documentFile.size,
-        base64Data: formData.documentBase64,
-        uploadedAt: serverTimestamp()
+      const documentData = formData.uploadedFileInfo ? {
+        fileName: formData.uploadedFileInfo.fileName,
+        fileType: formData.uploadedFileInfo.fileType,
+        fileSize: formData.uploadedFileInfo.fileSize,
+        fileUrl: formData.uploadedFileInfo.fileUrl,
+        fullUrl: formData.uploadedFileInfo.fullUrl,
+        filePath: formData.uploadedFileInfo.filePath,
+        uploadedAt: new Date().toISOString()
       } : null;
 
       // Save LMIA data to Firestore
@@ -287,7 +358,7 @@ function LMIASubmission() {
         submissionId: `LMIA${Date.now().toString().slice(-8)}`,
         verified: false,
         // Include document only if it exists
-        ...(documentData && { document: documentData })
+        ...(documentData && { lmiaDocument: documentData })
       };
 
       await addDoc(collection(db, "lmiaSubmissions"), lmiaData);
@@ -321,8 +392,8 @@ function LMIASubmission() {
         province: "",
         wage: "",
         documentFile: null,
-        documentBase64: null,
         documentPreview: null,
+        uploadedFileInfo: null,
         additionalNotes: ""
       });
 
@@ -345,6 +416,14 @@ function LMIASubmission() {
     
     const config = statusConfig[status] || { variant: "secondary", text: "Pending" };
     return <Badge bg={config.variant}>{config.text}</Badge>;
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   if (checkingSubmission) {
@@ -476,12 +555,21 @@ function LMIASubmission() {
                                 <strong>Submitted:</strong> {existingSubmission.submittedAt?.toDate?.().toLocaleDateString()}
                               </Col>
                             </Row>
-                            {existingSubmission.document && (
+                            {existingSubmission.lmiaDocument && (
                               <div className="mt-3 text-center">
+                                <Button
+                                  variant="outline-primary"
+                                  size="sm"
+                                  className="me-2"
+                                  onClick={() => viewFile(existingSubmission.lmiaDocument)}
+                                >
+                                  <i className="fas fa-eye me-1"></i>
+                                  View Document
+                                </Button>
                                 <Button
                                   variant="outline-success"
                                   size="sm"
-                                  onClick={() => downloadDocument(existingSubmission.document.base64Data, existingSubmission.document.fileName)}
+                                  onClick={() => downloadFile(existingSubmission.lmiaDocument)}
                                 >
                                   <i className="fas fa-download me-1"></i>
                                   Download LMIA Document
@@ -499,7 +587,7 @@ function LMIASubmission() {
                         <Col lg={12}>
                           <h5 className="fw-bold text-primary mb-3">
                             <i className="fas fa-certificate me-2"></i>
-                            
+                            LMIA Certificate Details
                           </h5>
                         </Col>
                         
@@ -515,7 +603,7 @@ function LMIASubmission() {
                               readOnly
                             />
                             <Form.Text className="text-muted">
-                              
+                              Auto-generated certificate number
                             </Form.Text>
                           </Form.Group>
                         </Col>
@@ -532,7 +620,7 @@ function LMIASubmission() {
                               readOnly
                             />
                             <Form.Text className="text-muted">
-                              
+                              Date of issue
                             </Form.Text>
                           </Form.Group>
                         </Col>
@@ -549,7 +637,7 @@ function LMIASubmission() {
                               readOnly
                             />
                             <Form.Text className="text-muted">
-                              
+                              Valid for 5 years
                             </Form.Text>
                           </Form.Group>
                         </Col>
@@ -587,13 +675,13 @@ function LMIASubmission() {
                               Province/Territory
                             </Form.Label>
                             <Form.Control
+                              type="text"
                               name="province"
                               value={formData.province}
                               onChange={handleInputChange}
+                              placeholder="e.g., Ontario, British Columbia"
                               className="py-2"
-                            >
-                             
-                            </Form.Control>
+                            />
                           </Form.Group>
                         </Col>
 
@@ -683,7 +771,7 @@ function LMIASubmission() {
                         </Col>
                       </Row>
 
-                      {/* Optional Document Upload */}
+                      {/* Document Upload Section */}
                       <Row className="mb-4">
                         <Col lg={12}>
                           <h5 className="fw-bold text-primary mb-3">
@@ -702,13 +790,13 @@ function LMIASubmission() {
                                 <Form.Control
                                   type="file"
                                   name="documentFile"
-                                  onChange={handleFileChange}
+                                  onChange={(e) => handleFileUpload(e, 'lmiaDocument')}
                                   accept=".jpg,.jpeg,.png,.pdf"
                                   className="mb-3"
                                   disabled={loading}
                                 />
                                 <Form.Text className="text-muted d-block">
-                                  Upload your official LMIA certificate (PDF, JPG, PNG) - Max 2MB for base64 storage
+                                  Upload your official LMIA certificate (PDF, JPG, PNG) - Max 10MB
                                 </Form.Text>
                                 <Form.Text className="text-info d-block">
                                   <i className="fas fa-info-circle me-1"></i>
@@ -716,15 +804,15 @@ function LMIASubmission() {
                                 </Form.Text>
                               </Form.Group>
                               
-                              {formData.documentFile && (
+                              {formData.uploadedFileInfo && (
                                 <div className="mt-3">
                                   <Alert variant="success" className="py-2 small">
                                     <div className="d-flex justify-content-between align-items-center">
                                       <div>
                                         <i className="fas fa-check me-2"></i>
-                                        {formData.documentFile.name}
+                                        {formData.uploadedFileInfo.fileName}
                                         <small className="text-muted ms-2">
-                                          ({(formData.documentFile.size / 1024 / 1024).toFixed(2)} MB)
+                                          ({formatFileSize(formData.uploadedFileInfo.fileSize)})
                                         </small>
                                       </div>
                                       <div>
@@ -742,10 +830,20 @@ function LMIASubmission() {
                                         <Button
                                           variant="outline-success"
                                           size="sm"
-                                          onClick={() => downloadDocument(formData.documentBase64, formData.documentFile.name)}
+                                          className="me-2"
+                                          onClick={() => downloadFile(formData.uploadedFileInfo)}
                                         >
                                           <i className="fas fa-download me-1"></i>
                                           Download
+                                        </Button>
+                                        <Button
+                                          variant="outline-danger"
+                                          size="sm"
+                                          onClick={handleFileDelete}
+                                          disabled={loading}
+                                        >
+                                          <i className="fas fa-trash me-1"></i>
+                                          Remove
                                         </Button>
                                       </div>
                                     </div>
@@ -818,11 +916,11 @@ function LMIASubmission() {
                     <Col md={6}>
                       <h6>What is LMIA?</h6>
                       <p className="small text-muted">
-                        A Labour Market Impact Assessment (LMIA) is a document that an employer in Canada may need to get before hiring a foreign worker:cite[1].
+                        A Labour Market Impact Assessment (LMIA) is a document that an employer in Canada may need to get before hiring a foreign worker.
                       </p>
                       <ul className="small text-muted">
-                        <li>Positive LMIA shows no Canadian available for the job:cite[1]</li>
-                        <li>Required for most employer-specific work permits:cite[1]</li>
+                        <li>Positive LMIA shows no Canadian available for the job</li>
+                        <li>Required for most employer-specific work permits</li>
                         <li>Valid for specific period (usually 1-2 years)</li>
                       </ul>
                     </Col>

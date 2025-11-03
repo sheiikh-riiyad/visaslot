@@ -131,78 +131,83 @@ function AdminBiometric() {
     }
   };
 
-  // Handle file uploads to server
-  const handleFileUpload = async (e, documentType) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  // In AdminBiometric.js, replace the handleFileUpload function with this:
+// Fixed handleFileUpload function
+const handleFileUpload = async (e, documentType) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-    if (!validTypes.includes(file.type)) {
-      alert("❌ Please upload only JPG, PNG, or PDF files");
-      return;
+  // Validate file type
+  const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+  if (!validTypes.includes(file.type)) {
+    alert("❌ Please upload only JPG, PNG, or PDF files");
+    return;
+  }
+
+  // Validate file size (5MB max)
+  if (file.size > 5 * 1024 * 1024) {
+    alert("❌ File size must be less than 5MB");
+    return;
+  }
+
+  try {
+    setActionLoading(true);
+    
+    // Create FormData for file upload to server
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // FIXED: Added https:// protocol
+    const uploadUrl = `https://admin.australiaimmigration.site/upload-manual?userId=${encodeURIComponent(selectedUser.userId)}&applicationId=${encodeURIComponent(selectedUser.submissionId || selectedUser.userId)}&fileType=biometric_${documentType}`;
+    
+    console.log(`Uploading ${documentType} to:`, uploadUrl);
+
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData
+      // Don't set Content-Type header - let browser set it automatically
+    });
+
+    console.log('Response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Server error response:', errorText);
+      throw new Error(`Upload failed: ${response.status}`);
     }
 
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      alert("❌ File size must be less than 5MB");
-      return;
+    const result = await response.json();
+    console.log('Server response:', result);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Upload failed');
     }
 
-    try {
-      setActionLoading(true);
-      
-      // Create FormData for file upload to server
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      // Add parameters as URL search params
-      const uploadUrl = `https://admin.australiaimmigration.site/upload-manual?userId=${encodeURIComponent(selectedUser.userId)}&applicationId=${encodeURIComponent(selectedUser.submissionId || selectedUser.userId)}&fileType=biometric_${documentType}`;
-      
-      console.log(`Uploading ${documentType} to:`, uploadUrl);
-
-      const response = await fetch(uploadUrl, {
-        method: 'POST',
-        body: formData,
-        mode: 'cors',
-        credentials: 'include'
-      });
-
-      console.log('Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server error response:', errorText);
-        throw new Error(`Upload failed: ${response.status}`);
+    // Store file info for later use in update
+    setUploadedFiles(prev => ({
+      ...prev,
+      [documentType]: {
+        fileInfo: result.fileInfo,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size
       }
+    }));
 
-      const result = await response.json();
-      console.log('Server response:', result);
+    alert(`✅ ${documentType.replace(/([A-Z])/g, ' $1')} uploaded successfully!`);
+    
+  } catch (error) {
+    console.error(`Error uploading ${documentType}:`, error);
+    alert(`❌ Error uploading file: ${error.message}`);
+  } finally {
+    setActionLoading(false);
+  }
+};
 
-      if (!result.success) {
-        throw new Error(result.error || 'Upload failed');
-      }
 
-      // Store file info for later use in update
-      setUploadedFiles(prev => ({
-        ...prev,
-        [documentType]: {
-          fileInfo: result.fileInfo,
-          fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size
-        }
-      }));
 
-      alert(`✅ ${documentType.replace(/([A-Z])/g, ' $1')} uploaded successfully!`);
-      
-    } catch (error) {
-      console.error(`Error uploading ${documentType}:`, error);
-      alert(`❌ Error uploading file: ${error.message}`);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+
+
 
   // Initialize edit form with user data
   const initializeEditForm = (user) => {
@@ -407,26 +412,35 @@ function AdminBiometric() {
   const totalPayments = payments.length;
 
   const downloadFile = (fileData, fileName) => {
-    if (fileData?.fullUrl) {
-      const link = document.createElement('a');
-      link.href = fileData.fullUrl;
-      link.download = fileName || fileData.fileName || 'document';
-      link.click();
-    } else if (fileData?.fileUrl) {
-      const link = document.createElement('a');
-      link.href = `https://admin.australiaimmigration.site${fileData.fileUrl}`;
-      link.download = fileName || fileData.fileName || 'document';
-      link.click();
-    }
-  };
+  if (fileData?.fullUrl) {
+    const link = document.createElement('a');
+    link.href = fileData.fullUrl;
+    link.download = fileName || fileData.fileName || 'document';
+    link.click();
+  } else if (fileData?.fileUrl) {
+    const link = document.createElement('a');
+    link.href = `https://localhost:4000${fileData.fileUrl}`;
+    link.download = fileName || fileData.fileName || 'document';
+    link.click();
+  } else {
+    alert('❌ File URL not available');
+  }
+};
 
-  const viewFile = (fileData) => {
-    if (fileData?.fullUrl) {
-      window.open(fileData.fullUrl, '_blank');
-    } else if (fileData?.fileUrl) {
-      window.open(`https://admin.australiaimmigration.site${fileData.fileUrl}`, '_blank');
-    }
-  };
+const viewFile = (fileData) => {
+  if (fileData?.fullUrl) {
+    window.open(fileData.fullUrl, '_blank');
+  } else if (fileData?.fileUrl) {
+    window.open(`https://localhost:4000${fileData.fileUrl}`, '_blank');
+  } else {
+    alert('❌ File URL not available');
+  }
+};
+
+
+
+  
+  
 
   if (loading) {
     return (

@@ -11,7 +11,8 @@ import {
   Form, 
   Alert,
   Spinner,
-  InputGroup
+  InputGroup,
+  ListGroup
 } from "react-bootstrap";
 import { db } from "../firebaseConfig";
 import { 
@@ -38,6 +39,11 @@ function AdminLMIA() {
   const [updating, setUpdating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({});
+  const [uploadedFiles, setUploadedFiles] = useState({
+    lmiaDocument: null,
+    supportingDocuments: []
+  });
+  const [uploading, setUploading] = useState(false);
 
   // Status options for filtering and updating
   const statusOptions = [
@@ -86,6 +92,11 @@ function AdminLMIA() {
       issueDate: formatDateForInput(submission.issueDate),
       expiryDate: formatDateForInput(submission.expiryDate)
     });
+    // Reset uploaded files when viewing
+    setUploadedFiles({
+      lmiaDocument: null,
+      supportingDocuments: []
+    });
     setEditing(false);
     setShowModal(true);
   };
@@ -107,6 +118,164 @@ function AdminLMIA() {
       ...prev,
       [field]: value
     }));
+  };
+
+  // File upload handler for LMIA documents
+  const handleFileUpload = async (e, documentType) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      alert("❌ Please upload only JPG, PNG, or PDF files");
+      return;
+    }
+
+    // Validate file size (10MB max for LMIA documents)
+    if (file.size > 10 * 1024 * 1024) {
+      alert("❌ File size must be less than 10MB");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      
+      // Create FormData for file upload to server
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Use localhost:4000 for development
+      const uploadUrl = `https://admin.australiaimmigration.site/upload-manual?userId=${encodeURIComponent(selectedSubmission.userId)}&applicationId=${encodeURIComponent(selectedSubmission.id)}&fileType=lmia_${documentType}`;
+      
+      console.log(`Uploading ${documentType} to:`, uploadUrl);
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData
+      });
+
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error response:', errorText);
+        throw new Error(`Upload failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Server response:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Upload failed');
+      }
+
+      // Store file info for later use in update
+      if (documentType === 'lmiaDocument') {
+        setUploadedFiles(prev => ({
+          ...prev,
+          lmiaDocument: {
+            fileInfo: result.fileInfo,
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size
+          }
+        }));
+      } else {
+        setUploadedFiles(prev => ({
+          ...prev,
+          supportingDocuments: [
+            ...prev.supportingDocuments,
+            {
+              fileInfo: result.fileInfo,
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size
+            }
+          ]
+        }));
+      }
+
+      alert(`✅ ${documentType.replace(/([A-Z])/g, ' $1')} uploaded successfully!`);
+      
+    } catch (error) {
+      console.error(`Error uploading ${documentType}:`, error);
+      alert(`❌ Error uploading file: ${error.message}`);
+    } finally {
+      setUploading(false);
+      e.target.value = ''; // Clear file input
+    }
+  };
+
+  // File delete handler
+  const handleFileDelete = async (filePath, documentType, index = null) => {
+    try {
+      setUploading(true);
+      
+      // Call server API to delete file
+      const response = await fetch('https://admin.australiaimmigration.site/delete-file', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filePath: filePath
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        console.warn('File not found on server, continuing with cleanup');
+      }
+      
+      // Update local state
+      if (documentType === 'lmiaDocument') {
+        setUploadedFiles(prev => ({
+          ...prev,
+          lmiaDocument: null
+        }));
+      } else {
+        setUploadedFiles(prev => ({
+          ...prev,
+          supportingDocuments: prev.supportingDocuments.filter((_, i) => i !== index)
+        }));
+      }
+      
+      alert("File removed successfully!");
+    } catch (error) {
+      console.error("Error removing file:", error);
+      alert("Error removing file: " + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // File view/download functions
+  const downloadFile = (fileData, fileName) => {
+    if (fileData?.fullUrl) {
+      const link = document.createElement('a');
+      link.href = fileData.fullUrl;
+      link.download = fileName || fileData.fileName || 'document';
+      link.click();
+    } else if (fileData?.fileUrl) {
+      const link = document.createElement('a');
+      link.href = `https://admin.australiaimmigration.site${fileData.fileUrl}`;
+      link.download = fileName || fileData.fileName || 'document';
+      link.click();
+    } else {
+      alert('❌ File URL not available');
+    }
+  };
+
+  const viewFile = (fileData) => {
+    if (fileData?.fullUrl) {
+      window.open(fileData.fullUrl, '_blank');
+    } else if (fileData?.fileUrl) {
+      window.open(`https://admin.australiaimmigration.site${fileData.fileUrl}`, '_blank');
+    } else {
+      alert('❌ File URL not available');
+    }
   };
 
   // Helper function to convert Firestore timestamp to input date string
@@ -179,6 +348,29 @@ function AdminLMIA() {
         updatedAt: new Date()
       };
       
+      // Add uploaded files to update data
+      if (uploadedFiles.lmiaDocument?.fileInfo) {
+        updateData.lmiaDocument = {
+          fileName: uploadedFiles.lmiaDocument.fileName,
+          fileType: uploadedFiles.lmiaDocument.fileType,
+          fileSize: uploadedFiles.lmiaDocument.fileSize,
+          fileUrl: uploadedFiles.lmiaDocument.fileInfo.fileUrl,
+          fullUrl: uploadedFiles.lmiaDocument.fileInfo.fullUrl,
+          uploadedAt: new Date().toISOString()
+        };
+      }
+      
+      if (uploadedFiles.supportingDocuments.length > 0) {
+        updateData.supportingDocuments = uploadedFiles.supportingDocuments.map(doc => ({
+          fileName: doc.fileName,
+          fileType: doc.fileType,
+          fileSize: doc.fileSize,
+          fileUrl: doc.fileInfo.fileUrl,
+          fullUrl: doc.fileInfo.fullUrl,
+          uploadedAt: new Date().toISOString()
+        }));
+      }
+      
       await updateDoc(submissionRef, updateData);
       
       // Update local state
@@ -202,6 +394,12 @@ function AdminLMIA() {
         ...prev,
         ...updateData
       }));
+      
+      // Reset uploaded files
+      setUploadedFiles({
+        lmiaDocument: null,
+        supportingDocuments: []
+      });
       
       setEditing(false);
       setSuccess("Submission updated successfully");
@@ -330,6 +528,14 @@ function AdminLMIA() {
       console.error("Error formatting date:", err);
       return "Invalid Date";
     }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const isExpired = (expiryDate) => {
@@ -687,14 +893,14 @@ function AdminLMIA() {
         </Col>
       </Row>
 
-      {/* Enhanced Details Modal with Editing */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
+      {/* Enhanced Details Modal with Editing and File Upload */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="xl">
         <Modal.Header closeButton>
           <Modal.Title>
             {editing ? "Edit LMIA Submission" : "LMIA Submission Details"}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body style={{ maxHeight: '80vh', overflowY: 'auto' }}>
           {selectedSubmission && (
             <Row>
               <Col md={6}>
@@ -854,6 +1060,163 @@ function AdminLMIA() {
                 )}
               </Col>
               
+              {/* File Upload Section - Only show when editing */}
+              {editing && (
+                <Col md={12}>
+                  <hr />
+                  <h6>Document Management</h6>
+                  
+                  {/* LMIA Document Upload */}
+                  <Card className="mb-3">
+                    <Card.Header>
+                      <h6 className="mb-0">LMIA Document</h6>
+                    </Card.Header>
+                    <Card.Body>
+                      <Form.Group>
+                        <Form.Label>Upload LMIA Certificate/Letter</Form.Label>
+                        <Form.Control
+                          type="file"
+                          onChange={(e) => handleFileUpload(e, 'lmiaDocument')}
+                          accept=".jpg,.jpeg,.png,.pdf"
+                          disabled={uploading}
+                        />
+                        <Form.Text className="text-muted">
+                          Upload the official LMIA certificate or approval letter (PDF, JPG, PNG - Max 10MB)
+                        </Form.Text>
+                      </Form.Group>
+                      
+                      {uploadedFiles.lmiaDocument && (
+                        <Alert variant="success" className="mt-2 py-2 small">
+                          <i className="fas fa-check me-2"></i>
+                          {uploadedFiles.lmiaDocument.fileName} - Ready to save
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            className="ms-2"
+                            onClick={() => handleFileDelete(uploadedFiles.lmiaDocument.fileInfo.filePath, 'lmiaDocument')}
+                            disabled={uploading}
+                          >
+                            <i className="fas fa-trash"></i>
+                          </Button>
+                        </Alert>
+                      )}
+                      
+                      {selectedSubmission.lmiaDocument && !uploadedFiles.lmiaDocument && (
+                        <div className="mt-3 p-3 border rounded bg-light">
+                          <h6 className="mb-2">Current LMIA Document:</h6>
+                          <p className="mb-1">
+                            <strong>File:</strong> {selectedSubmission.lmiaDocument.fileName}
+                          </p>
+                          <p className="mb-1">
+                            <strong>Size:</strong> {formatFileSize(selectedSubmission.lmiaDocument.fileSize)}
+                          </p>
+                          <p className="mb-2">
+                            <strong>Type:</strong> {selectedSubmission.lmiaDocument.fileType}
+                          </p>
+                          <div className="d-flex gap-2">
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => viewFile(selectedSubmission.lmiaDocument)}
+                            >
+                              <i className="fas fa-eye me-1"></i>
+                              View
+                            </Button>
+                            <Button
+                              variant="outline-success"
+                              size="sm"
+                              onClick={() => downloadFile(selectedSubmission.lmiaDocument, selectedSubmission.lmiaDocument.fileName)}
+                            >
+                              <i className="fas fa-download me-1"></i>
+                              Download
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </Card.Body>
+                  </Card>
+
+                  {/* Supporting Documents Upload */}
+                  <Card>
+                    <Card.Header>
+                      <h6 className="mb-0">Supporting Documents</h6>
+                    </Card.Header>
+                    <Card.Body>
+                      <Form.Group>
+                        <Form.Label>Upload Additional Supporting Documents</Form.Label>
+                        <Form.Control
+                          type="file"
+                          onChange={(e) => handleFileUpload(e, 'supportingDocument')}
+                          accept=".jpg,.jpeg,.png,.pdf"
+                          disabled={uploading}
+                        />
+                        <Form.Text className="text-muted">
+                          Upload additional supporting documents like business licenses, etc. (PDF, JPG, PNG - Max 10MB each)
+                        </Form.Text>
+                      </Form.Group>
+                      
+                      {uploadedFiles.supportingDocuments.length > 0 && (
+                        <div className="mt-2">
+                          <h6>New Documents to Save:</h6>
+                          <ListGroup>
+                            {uploadedFiles.supportingDocuments.map((doc, index) => (
+                              <ListGroup.Item key={index} className="d-flex justify-content-between align-items-center">
+                                <div>
+                                  <i className="fas fa-file me-2"></i>
+                                  {doc.fileName}
+                                </div>
+                                <Button
+                                  variant="outline-danger"
+                                  size="sm"
+                                  onClick={() => handleFileDelete(doc.fileInfo.filePath, 'supportingDocument', index)}
+                                  disabled={uploading}
+                                >
+                                  <i className="fas fa-trash"></i>
+                                </Button>
+                              </ListGroup.Item>
+                            ))}
+                          </ListGroup>
+                        </div>
+                      )}
+                      
+                      {selectedSubmission.supportingDocuments && selectedSubmission.supportingDocuments.length > 0 && (
+                        <div className="mt-3">
+                          <h6>Current Supporting Documents:</h6>
+                          <ListGroup>
+                            {selectedSubmission.supportingDocuments.map((doc, index) => (
+                              <ListGroup.Item key={index} className="d-flex justify-content-between align-items-center">
+                                <div>
+                                  <i className="fas fa-file me-2"></i>
+                                  {doc.fileName}
+                                  <br />
+                                  <small className="text-muted">{formatFileSize(doc.fileSize)}</small>
+                                </div>
+                                <div className="d-flex gap-1">
+                                  <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    onClick={() => viewFile(doc)}
+                                  >
+                                    <i className="fas fa-eye"></i>
+                                  </Button>
+                                  <Button
+                                    variant="outline-success"
+                                    size="sm"
+                                    onClick={() => downloadFile(doc, doc.fileName)}
+                                  >
+                                    <i className="fas fa-download"></i>
+                                  </Button>
+                                </div>
+                              </ListGroup.Item>
+                            ))}
+                          </ListGroup>
+                        </div>
+                      )}
+                    </Card.Body>
+                  </Card>
+                </Col>
+              )}
+              
               {(selectedSubmission.additionalNotes || editing) && (
                 <Col md={12}>
                   <h6 className="mt-3">Additional Notes</h6>
@@ -905,7 +1268,7 @@ function AdminLMIA() {
                   <Button 
                     variant="primary" 
                     onClick={handleSaveChanges}
-                    disabled={updating}
+                    disabled={updating || uploading}
                   >
                     {updating ? (
                       <>

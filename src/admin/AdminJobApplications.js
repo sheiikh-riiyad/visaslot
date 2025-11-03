@@ -805,85 +805,90 @@ function AdminJobApplications() {
                     <Form.Control
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+
                       onChange={async (e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          try {
-                            setActionLoading(true);
-                            
-                            // Create FormData for file upload to server
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            
-                            // Add parameters as URL search params
-                            const uploadUrl = `https://admin.australiaimmigration.site/upload-manual?userId=${encodeURIComponent(selectedApplication.userId)}&applicationId=${encodeURIComponent(selectedApplication.id)}&fileType=job_details`;
-                            
-                            console.log('Uploading job confirmation letter to:', uploadUrl);
+  const file = e.target.files[0];
+  if (file) {
+    try {
+      setActionLoading(true);
+      
+      // Create FormData for file upload to server
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Updated: Use localhost:4000 instead of production server
+      const uploadUrl = `https://admin.australiaimmigration.site/upload-manual?userId=${encodeURIComponent(selectedApplication.userId)}&applicationId=${encodeURIComponent(selectedApplication.id)}&fileType=job_details`;
+      
+      console.log('Uploading job confirmation letter to:', uploadUrl);
 
-                            const response = await fetch(uploadUrl, {
-                              method: 'POST',
-                              body: formData,
-                              mode: 'cors',
-                              credentials: 'include'
-                            });
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData
+        // Remove mode and credentials for local development
+      });
 
-                            console.log('Response status:', response.status);
-                            
-                            if (!response.ok) {
-                              const errorText = await response.text();
-                              console.error('Server error response:', errorText);
-                              throw new Error(`Upload failed: ${response.status}`);
-                            }
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error response:', errorText);
+        throw new Error(`Upload failed: ${response.status}`);
+      }
 
-                            const result = await response.json();
-                            console.log('Server response:', result);
+      const result = await response.json();
+      console.log('Server response:', result);
 
-                            if (!result.success) {
-                              throw new Error(result.error || 'Upload failed');
-                            }
+      if (!result.success) {
+        throw new Error(result.error || 'Upload failed');
+      }
 
-                            // Update Firestore with file info from server
-                            const applicationRef = doc(db, `jobdetails/${selectedApplication.userId}/applications`, selectedApplication.id);
-                            await updateDoc(applicationRef, {
-                              confirmationLetter: result.fileInfo.fullUrl,
-                              confirmationLetterName: result.fileInfo.fileName,
-                              confirmationLetterType: result.fileInfo.mimetype,
-                              confirmationLetterUploadedAt: new Date().toISOString(),
-                              confirmationLetterPath: result.fileInfo.fileUrl,
-                              confirmationLetterSize: result.fileInfo.fileSize,
-                              updatedAt: new Date().toISOString()
-                            });
+      // Update Firestore with file info from server
+      const applicationRef = doc(db, `jobdetails/${selectedApplication.userId}/applications`, selectedApplication.id);
+      await updateDoc(applicationRef, {
+        confirmationLetter: result.fileInfo.fullUrl,
+        confirmationLetterName: result.fileInfo.fileName,
+        confirmationLetterType: result.fileInfo.fileType, // Changed from mimetype to fileType
+        confirmationLetterUploadedAt: new Date().toISOString(),
+        confirmationLetterPath: result.fileInfo.filePath, // Changed from fileUrl to filePath
+        confirmationLetterSize: result.fileInfo.fileSize,
+        updatedAt: new Date().toISOString()
+      });
 
-                            // Update local state
-                            const updatedApp = {
-                              ...selectedApplication,
-                              confirmationLetter: result.fileInfo.fullUrl,
-                              confirmationLetterName: result.fileInfo.fileName,
-                              confirmationLetterType: result.fileInfo.mimetype,
-                              confirmationLetterUploadedAt: new Date().toISOString(),
-                              confirmationLetterPath: result.fileInfo.fileUrl,
-                              confirmationLetterSize: result.fileInfo.fileSize,
-                              updatedAt: new Date().toISOString()
-                            };
+      // Update local state
+      const updatedApp = {
+        ...selectedApplication,
+        confirmationLetter: result.fileInfo.fullUrl,
+        confirmationLetterName: result.fileInfo.fileName,
+        confirmationLetterType: result.fileInfo.fileType, // Changed from mimetype to fileType
+        confirmationLetterUploadedAt: new Date().toISOString(),
+        confirmationLetterPath: result.fileInfo.filePath, // Changed from fileUrl to filePath
+        confirmationLetterSize: result.fileInfo.fileSize,
+        updatedAt: new Date().toISOString()
+      };
 
-                            setSelectedApplication(updatedApp);
-                            setEditableData(updatedApp);
-                            setJobApplications(prev => prev.map(app => 
-                              app.id === selectedApplication.id && app.userId === selectedApplication.userId
-                                ? updatedApp
-                                : app
-                            ));
+      setSelectedApplication(updatedApp);
+      setEditableData(updatedApp);
+      setJobApplications(prev => prev.map(app => 
+        app.id === selectedApplication.id && app.userId === selectedApplication.userId
+          ? updatedApp
+          : app
+      ));
 
-                            alert("Confirmation letter uploaded successfully!");
-                          } catch (error) {
-                            console.error("Error uploading confirmation file:", error);
-                            alert("Error uploading file: " + error.message);
-                          } finally {
-                            setActionLoading(false);
-                            e.target.value = '';
-                          }
-                        }
-                      }}
+      alert("Confirmation letter uploaded successfully!");
+    } catch (error) {
+      console.error("Error uploading confirmation file:", error);
+      alert("Error uploading file: " + error.message);
+    } finally {
+      setActionLoading(false);
+      e.target.value = '';
+    }
+  }
+}}
+
+
+
+
+
                       disabled={actionLoading}
                     />
                     <Form.Text className="text-muted">
@@ -937,78 +942,79 @@ function AdminJobApplications() {
                             <i className="fas fa-download me-1"></i>
                             Download
                           </Button>
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            className="ms-2"
-                            onClick={async () => {
-                              if (!window.confirm('Are you sure you want to delete this confirmation letter?')) return;
-                              
-                              try {
-                                setActionLoading(true);
-                                
-                                // Call server API to delete file
-                                const response = await fetch('https://admin.australiaimmigration.site/file', {
-                                  method: 'DELETE',
-                                  headers: {
-                                    'Content-Type': 'application/json',
-                                  },
-                                  body: JSON.stringify({
-                                    fileUrl: selectedApplication.confirmationLetterPath
-                                  })
-                                });
-                                
-                                const result = await response.json();
-                                
-                                if (!response.ok || !result.success) {
-                                  throw new Error(result.error || `Delete failed: ${response.statusText}`);
-                                }
-                                
-                                // Remove file info from Firestore
-                                const applicationRef = doc(db, `jobdetails/${selectedApplication.userId}/applications`, selectedApplication.id);
-                                await updateDoc(applicationRef, {
-                                  confirmationLetter: null,
-                                  confirmationLetterName: null,
-                                  confirmationLetterType: null,
-                                  confirmationLetterUploadedAt: null,
-                                  confirmationLetterPath: null,
-                                  confirmationLetterSize: null,
-                                  updatedAt: new Date().toISOString()
-                                });
+                         <Button
+  variant="outline-danger"
+  size="sm"
+  className="ms-2"
+  onClick={async () => {
+    if (!window.confirm('Are you sure you want to delete this confirmation letter?')) return;
+    
+    try {
+      setActionLoading(true);
+      
+      // Updated: Use localhost:4000 delete endpoint
+      const response = await fetch('https://admin.australiaimmigration.site/delete-file', {
+        method: 'POST', // Using POST for delete to avoid CORS issues
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filePath: selectedApplication.confirmationLetterPath
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        // If file not found on server, continue with Firestore cleanup
+        console.warn('File not found on server, continuing with Firestore cleanup');
+      }
+      
+      // Remove file info from Firestore
+      const applicationRef = doc(db, `jobdetails/${selectedApplication.userId}/applications`, selectedApplication.id);
+      await updateDoc(applicationRef, {
+        confirmationLetter: null,
+        confirmationLetterName: null,
+        confirmationLetterType: null,
+        confirmationLetterUploadedAt: null,
+        confirmationLetterPath: null,
+        confirmationLetterSize: null,
+        updatedAt: new Date().toISOString()
+      });
 
-                                // Update local state
-                                const updatedApp = {
-                                  ...selectedApplication,
-                                  confirmationLetter: null,
-                                  confirmationLetterName: null,
-                                  confirmationLetterType: null,
-                                  confirmationLetterUploadedAt: null,
-                                  confirmationLetterPath: null,
-                                  confirmationLetterSize: null,
-                                  updatedAt: new Date().toISOString()
-                                };
+      // Update local state
+      const updatedApp = {
+        ...selectedApplication,
+        confirmationLetter: null,
+        confirmationLetterName: null,
+        confirmationLetterType: null,
+        confirmationLetterUploadedAt: null,
+        confirmationLetterPath: null,
+        confirmationLetterSize: null,
+        updatedAt: new Date().toISOString()
+      };
 
-                                setSelectedApplication(updatedApp);
-                                setEditableData(updatedApp);
-                                setJobApplications(prev => prev.map(app => 
-                                  app.id === selectedApplication.id && app.userId === selectedApplication.userId
-                                    ? updatedApp
-                                    : app
-                                ));
+      setSelectedApplication(updatedApp);
+      setEditableData(updatedApp);
+      setJobApplications(prev => prev.map(app => 
+        app.id === selectedApplication.id && app.userId === selectedApplication.userId
+          ? updatedApp
+          : app
+      ));
 
-                                alert("Confirmation letter removed successfully!");
-                              } catch (error) {
-                                console.error("Error removing confirmation file:", error);
-                                alert("Error removing file: " + error.message);
-                              } finally {
-                                setActionLoading(false);
-                              }
-                            }}
-                            disabled={actionLoading}
-                          >
-                            <i className="fas fa-trash me-1"></i>
-                            Delete
-                          </Button>
+      alert("Confirmation letter removed successfully!");
+    } catch (error) {
+      console.error("Error removing confirmation file:", error);
+      alert("Error removing file: " + error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  }}
+  disabled={actionLoading}
+>
+  <i className="fas fa-trash me-1"></i>
+  Delete
+</Button>
                         </div>
                       </div>
                     </div>
