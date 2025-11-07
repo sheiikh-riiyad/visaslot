@@ -74,3 +74,764 @@
   background-color: #00365d !important; /* darker blue */
   color: #ffffff !important;
 }
+
+
+.goodman-about {
+  font-family: 'Arial', sans-serif;
+  color: #333;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Hero Section */
+.about-hero {
+  background: linear-gradient(135deg, #1a3d7c 0%, #2d5ba9 100%);
+  color: white;
+  padding: 100px 0;
+  text-align: center;
+}
+
+.hero-content h1 {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.hero-subtitle {
+  font-size: 1.5rem;
+  opacity: 0.9;
+  font-weight: 300;
+}
+
+/* Company Overview */
+.company-overview {
+  padding: 80px 0;
+  background: #f8f9fa;
+}
+
+.overview-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 60px;
+  align-items: start;
+}
+
+.overview-text h2 {
+  color: #1a3d7c;
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+}
+
+.overview-text p {
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  color: #555;
+}
+
+.overview-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.stat-item h3 {
+  font-size: 2.5rem;
+  color: #1a3d7c;
+  margin-bottom: 0.5rem;
+}
+
+.stat-item p {
+  color: #666;
+  font-weight: 500;
+}
+
+/* Our Values */
+.our-values {
+  padding: 80px 0;
+}
+
+.our-values h2 {
+  text-align: center;
+  color: #1a3d7c;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+}
+
+.values-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+}
+
+.value-card {
+  text-align: center;
+  padding: 40px 20px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease;
+}
+
+.value-card:hover {
+  transform: translateY(-5px);
+}
+
+.value-icon {
+  font-size: 3rem;
+  margin-bottom: 1.5rem;
+}
+
+.value-card h3 {
+  color: #1a3d7c;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.value-card p {
+  color: #666;
+  line-height: 1.6;
+}
+
+/* What We Do */
+.what-we-do {
+  padding: 80px 0;
+  background: #f8f9fa;
+}
+
+.what-we-do h2 {
+  text-align: center;
+  color: #1a3d7c;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+}
+
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
+}
+
+.service-item {
+  padding: 40px 30px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+.service-item h3 {
+  color: #1a3d7c;
+  margin-bottom: 1rem;
+  font-size: 1.4rem;
+}
+
+.service-item p {
+  color: #666;
+  line-height: 1.6;
+}
+
+/* Leadership Team */
+.leadership-team {
+  padding: 80px 0;
+}
+
+.leadership-team h2 {
+  text-align: center;
+  color: #1a3d7c;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 40px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.team-member {
+  text-align: center;
+}
+
+.member-photo {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: #e9ecef;
+  margin: 0 auto 1.5rem;
+  border: 4px solid #1a3d7c;
+}
+
+.team-member h3 {
+  color: #1a3d7c;
+  margin-bottom: 0.5rem;
+  font-size: 1.3rem;
+}
+
+.team-member p {
+  color: #666;
+  font-style: italic;
+}
+
+/* CTA Section */
+.cta-section {
+  padding: 80px 0;
+  background: linear-gradient(135deg, #1a3d7c 0%, #2d5ba9 100%);
+  color: white;
+  text-align: center;
+}
+
+.cta-section h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.cta-section p {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  opacity: 0.9;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 15px 30px;
+  border: none;
+  border-radius: 5px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: #ff6b35;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #e55a2b;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: white;
+  border: 2px solid white;
+}
+
+.btn-secondary:hover {
+  background: white;
+  color: #1a3d7c;
+  transform: translateY(-2px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .hero-content h1 {
+    font-size: 2.5rem;
+  }
+  
+  .hero-subtitle {
+    font-size: 1.2rem;
+  }
+  
+  .overview-content {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  
+  .overview-text h2,
+  .our-values h2,
+  .what-we-do h2,
+  .leadership-team h2,
+  .cta-section h2 {
+    font-size: 2rem;
+  }
+  
+  .cta-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .btn-primary, .btn-secondary {
+    width: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .about-hero {
+    padding: 60px 0;
+  }
+  
+  .company-overview,
+  .our-values,
+  .what-we-do,
+  .leadership-team,
+  .cta-section {
+    padding: 60px 0;
+  }
+  
+  .values-grid,
+  .services-grid,
+  .team-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.bhp-about {
+  font-family: 'Arial', 'Helvetica', sans-serif;
+  color: #333;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Hero Section */
+.bhp-hero {
+  background: linear-gradient(135deg, #1e3d72 0%, #2a5298 100%);
+  color: white;
+  padding: 120px 0 80px;
+  text-align: center;
+}
+
+.bhp-hero-content h1 {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.bhp-hero-subtitle {
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  opacity: 0.9;
+  font-weight: 300;
+}
+
+.bhp-hero-description {
+  font-size: 1.2rem;
+  max-width: 600px;
+  margin: 0 auto;
+  opacity: 0.9;
+  line-height: 1.8;
+}
+
+/* Quick Facts */
+.bhp-facts {
+  padding: 60px 0;
+  background: #f8f9fa;
+}
+
+.facts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 30px;
+  text-align: center;
+}
+
+.fact-item h3 {
+  font-size: 2.5rem;
+  color: #1e3d72;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.fact-item p {
+  color: #666;
+  font-weight: 500;
+  font-size: 1.1rem;
+}
+
+/* Company Overview */
+.bhp-overview {
+  padding: 80px 0;
+  background: white;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 60px;
+  align-items: start;
+}
+
+.overview-content h2 {
+  color: #1e3d72;
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+}
+
+.overview-content p {
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  color: #555;
+  line-height: 1.8;
+}
+
+.overview-highlights {
+  background: #f8f9fa;
+  padding: 30px;
+  border-radius: 10px;
+  border-left: 4px solid #1e3d72;
+}
+
+.overview-highlights h3 {
+  color: #1e3d72;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.overview-highlights ul {
+  list-style: none;
+  padding: 0;
+}
+
+.overview-highlights li {
+  padding: 10px 0;
+  border-bottom: 1px solid #e9ecef;
+  color: #555;
+  font-size: 1.1rem;
+}
+
+.overview-highlights li:last-child {
+  border-bottom: none;
+}
+
+/* Operations */
+.bhp-operations {
+  padding: 80px 0;
+  background: #f8f9fa;
+}
+
+.bhp-operations h2 {
+  text-align: center;
+  color: #1e3d72;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+}
+
+.operations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
+}
+
+.operation-card {
+  background: white;
+  padding: 40px 30px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease;
+}
+
+.operation-card:hover {
+  transform: translateY(-5px);
+}
+
+.operation-icon {
+  font-size: 3rem;
+  margin-bottom: 1.5rem;
+}
+
+.operation-card h3 {
+  color: #1e3d72;
+  margin-bottom: 1rem;
+  font-size: 1.4rem;
+}
+
+.operation-card p {
+  color: #666;
+  line-height: 1.6;
+}
+
+/* Sustainability */
+.bhp-sustainability {
+  padding: 80px 0;
+  background: white;
+}
+
+.sustainability-content h2 {
+  color: #1e3d72;
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.sustainability-content > p {
+  font-size: 1.1rem;
+  color: #555;
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto 3rem;
+  line-height: 1.8;
+}
+
+.sustainability-pillars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+  margin-top: 3rem;
+}
+
+.pillar {
+  text-align: center;
+  padding: 30px;
+  background: #f8f9fa;
+  border-radius: 10px;
+}
+
+.pillar h4 {
+  color: #1e3d72;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+}
+
+.pillar p {
+  color: #666;
+  line-height: 1.6;
+}
+
+/* Leadership */
+.bhp-leadership {
+  padding: 80px 0;
+  background: #f8f9fa;
+}
+
+.bhp-leadership h2 {
+  text-align: center;
+  color: #1e3d72;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+}
+
+.leadership-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 40px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.leader-card {
+  text-align: center;
+  background: white;
+  padding: 40px 30px;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.leader-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: #e9ecef;
+  margin: 0 auto 1.5rem;
+  border: 3px solid #1e3d72;
+}
+
+.leader-card h3 {
+  color: #1e3d72;
+  margin-bottom: 0.5rem;
+  font-size: 1.3rem;
+}
+
+.leader-card p {
+  color: #666;
+  font-style: italic;
+}
+
+/* Values */
+.bhp-values {
+  padding: 80px 0;
+  background: white;
+}
+
+.bhp-values h2 {
+  text-align: center;
+  color: #1e3d72;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+}
+
+.values-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+}
+
+.value-item {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.value-item h3 {
+  color: #1e3d72;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.value-item p {
+  color: #666;
+  line-height: 1.6;
+  font-size: 1.1rem;
+}
+
+/* CTA Section */
+.bhp-cta {
+  padding: 80px 0;
+  background: linear-gradient(135deg, #1e3d72 0%, #2a5298 100%);
+  color: white;
+  text-align: center;
+}
+
+.cta-content h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.cta-content p {
+  font-size: 1.2rem;
+  margin-bottom: 2.5rem;
+  opacity: 0.9;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-primary, .btn-secondary, .btn-outline {
+  padding: 15px 30px;
+  border: none;
+  border-radius: 5px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 180px;
+}
+
+.btn-primary {
+  background: #ff6b35;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #e55a2b;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: white;
+  color: #1e3d72;
+}
+
+.btn-secondary:hover {
+  background: #f8f9fa;
+  transform: translateY(-2px);
+}
+
+.btn-outline {
+  background: transparent;
+  color: white;
+  border: 2px solid white;
+}
+
+.btn-outline:hover {
+  background: white;
+  color: #1e3d72;
+  transform: translateY(-2px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .bhp-hero-content h1 {
+    font-size: 2.5rem;
+  }
+  
+  .bhp-hero-subtitle {
+    font-size: 1.4rem;
+  }
+  
+  .overview-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  
+  .bhp-hero-content h2,
+  .bhp-operations h2,
+  .bhp-sustainability h2,
+  .bhp-leadership h2,
+  .bhp-values h2,
+  .cta-content h2 {
+    font-size: 2rem;
+  }
+  
+  .cta-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .btn-primary, .btn-secondary, .btn-outline {
+    width: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bhp-hero {
+    padding: 80px 0 60px;
+  }
+  
+  .bhp-facts,
+  .bhp-overview,
+  .bhp-operations,
+  .bhp-sustainability,
+  .bhp-leadership,
+  .bhp-values,
+  .bhp-cta {
+    padding: 60px 0;
+  }
+  
+  .facts-grid,
+  .operations-grid,
+  .sustainability-pillars,
+  .leadership-grid,
+  .values-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .operation-card,
+  .leader-card {
+    padding: 30px 20px;
+  }
+}

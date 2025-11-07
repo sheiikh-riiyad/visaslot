@@ -56,13 +56,13 @@ const Home = () => {
                 <a href="#home" onClick={() => setActiveTab('home')}>Home</a>
               </li>
               <li className={activeTab === 'countries' ? 'nav-active' : ''}>
-                <a href="#countries" onClick={() => setActiveTab('countries')}>Countries and regions</a>
+                <a href="https://rtscompanyaustralia.com/" onClick={() => setActiveTab('countries')}>RTS Company</a>
               </li>
               <li className={activeTab === 'international' ? 'nav-active' : ''}>
-                <a href="#international" onClick={() => setActiveTab('international')}>International relations</a>
+                <a href="/goodman" onClick={() => setActiveTab('international')}>Australia Goodman Group</a>
               </li>
               <li className={activeTab === 'trade' ? 'nav-active' : ''}>
-                <a href="#trade" onClick={() => setActiveTab('trade')}>Trade and investment</a>
+                <a href="/BHPAbout" onClick={() => setActiveTab('trade')}>BHP Group Limited</a>
               </li>
               <li className={activeTab === 'aid' ? 'nav-active' : ''}>
                 <a href="#aid" onClick={() => setActiveTab('aid')}>Australian aid</a>

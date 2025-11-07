@@ -27,6 +27,8 @@ import AdminLogin from './admin/AdminLogin';
 import AdminDashboard from './admin/AdminDashboard';
 import { Navigate } from 'react-router-dom';
 import AdminBiometric from './admin/AdminBiometric';
+import GoodmanAbout from './pages/goodman';
+import BHPAbout from './pages/bhpgroup';
 
 
 function App() {
@@ -79,6 +81,9 @@ function App() {
         <Route path="/manpower" element={<ManpowerService/>} />
         <Route path="/passport-visa" element={<AustraliaVisaPassport/>} />
         <Route path="/biometric-admin" element={<AdminBiometric/>} />
+        <Route path="/goodman" element={<GoodmanAbout/>} />
+        <Route path="/BHPAbout" element={<BHPAbout/>} />
+
 
          {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
