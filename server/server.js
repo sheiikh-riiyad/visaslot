@@ -5,11 +5,11 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = 4000; // Changed to 4000
+const PORT = 4000;
 
 // CORS for local development
 app.use(cors({
-  origin: ['http://localhost:3001', 'http://localhost:4000', 'https://www.admin.australiaimmigration.site','http://italyembassy.site','https://admin.australiaimmigration.site'],
+  origin: ['https://australiaimmigration.site', 'http://localhost:3000', 'http://localhost:4000', 'https://admin.australiaimmigration.site', 'http://italyembassy.site'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
@@ -64,6 +64,18 @@ const upload = multer({
   }
 });
 
+// Function to get base URL based on environment
+const getBaseUrl = () => {
+  // Check if we're in production (your domain)
+  if (process.env.NODE_ENV === 'production' || 
+      process.env.HOSTNAME === 'admin.australiaimmigration.site' ||
+      __dirname.includes('admin.australiaimmigration.site')) {
+    return 'https://admin.australiaimmigration.site';
+  }
+  // For local development
+  return `http://localhost:${PORT}`;
+};
+
 // Upload endpoint for application letters
 app.post('/upload-application-letter', upload.single('file'), async (req, res) => {
   console.log('🚀 UPLOAD ENDPOINT HIT');
@@ -117,8 +129,9 @@ app.post('/upload-application-letter', upload.single('file'), async (req, res) =
     console.log('💾 Saving file to:', filePath);
     fs.writeFileSync(filePath, req.file.buffer);
 
-    // Construct file URL and path
-    const fileUrl = `http://localhost:${PORT}/uploads/${userId}/${fileName}`;
+    // ✅ FIXED: Use production domain URL instead of localhost
+    const baseUrl = getBaseUrl();
+    const fileUrl = `${baseUrl}/uploads/${userId}/${fileName}`;
     const serverFilePath = `uploads/${userId}/${fileName}`;
 
     console.log('✅ File upload completed successfully:', {
@@ -126,14 +139,15 @@ app.post('/upload-application-letter', upload.single('file'), async (req, res) =
       userId: userId,
       fileName: req.file.originalname,
       fileSize: req.file.size,
-      fileUrl: fileUrl
+      fileUrl: fileUrl,
+      baseUrl: baseUrl
     });
 
     res.json({
       success: true,
       message: 'File uploaded successfully',
       fileInfo: {
-        applicationLetter: fileUrl,
+        applicationLetter: fileUrl, // This will now be your production URL
         applicationLetterName: req.file.originalname,
         applicationLetterType: req.file.mimetype,
         applicationLetterSize: req.file.size,
@@ -213,9 +227,10 @@ app.post('/upload-manual', upload.single('file'), async (req, res) => {
     console.log('💾 Saving file to:', filePath);
     fs.writeFileSync(filePath, req.file.buffer);
 
-    // Construct file URL and path
+    // ✅ FIXED: Use production domain URL instead of localhost
+    const baseUrl = getBaseUrl();
     const fileUrl = `/uploads/${userId}/${fileName}`;
-    const fullUrl = `http://localhost:${PORT}${fileUrl}`;
+    const fullUrl = `${baseUrl}${fileUrl}`;
     const serverFilePath = `uploads/${userId}/${fileName}`;
 
     console.log('✅ Manual file upload completed successfully:', {
@@ -225,7 +240,8 @@ app.post('/upload-manual', upload.single('file'), async (req, res) => {
       fileName: req.file.originalname,
       fileSize: req.file.size,
       fileUrl: fileUrl,
-      fullUrl: fullUrl
+      fullUrl: fullUrl,
+      baseUrl: baseUrl
     });
 
     res.json({
@@ -233,7 +249,7 @@ app.post('/upload-manual', upload.single('file'), async (req, res) => {
       message: 'File uploaded successfully',
       fileInfo: {
         fileUrl: fileUrl,
-        fullUrl: fullUrl,
+        fullUrl: fullUrl, // This will now be your production URL
         fileName: req.file.originalname,
         fileType: req.file.mimetype,
         fileSize: req.file.size,
@@ -254,27 +270,30 @@ app.post('/upload-manual', upload.single('file'), async (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
+  const baseUrl = getBaseUrl();
   res.json({ 
     status: 'OK', 
-    message: 'File upload server is running on localhost:4000',
+    message: `File upload server is running on ${baseUrl}/`,
+    baseUrl: baseUrl,
+    environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString()
   });
 });
 
 // Test endpoint
 app.post('/test-upload', upload.single('file'), (req, res) => {
-  console.log('🧪 TEST ENDPOINT HIT');
+  const baseUrl = getBaseUrl();
+  console.log('🧪 TEST ENDPOINT HIT - Base URL:', baseUrl);
   res.json({
     success: true,
-    message: 'Test endpoint working on localhost:4000',
+    message: `Test endpoint working on ${baseUrl}/`,
+    baseUrl: baseUrl,
     receivedBody: req.body,
     receivedFile: req.file ? 'File received' : 'No file'
   });
 });
 
-
-
-// Add this to your server.js file
+// Delete file endpoint
 app.post('/delete-file', async (req, res) => {
   try {
     const { filePath } = req.body;
@@ -318,12 +337,13 @@ app.post('/delete-file', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 File upload server running on http://localhost:${PORT}`);
+  const baseUrl = getBaseUrl();
+  console.log(`🚀 File upload server running on ${baseUrl}`);
   console.log(`📁 Upload directory: ${uploadsDir}`);
   console.log(`📋 Available endpoints:`);
-  console.log(`   POST http://localhost:${PORT}/upload-application-letter`);
-  console.log(`   POST http://localhost:${PORT}/upload-manual`);
-  console.log(`   POST http://localhost:${PORT}/test-upload`);
-  console.log(`   GET  http://localhost:${PORT}/health`);
-  console.log(`✅ Ready for local development!`);
+  console.log(`   POST ${baseUrl}/upload-application-letter`);
+  console.log(`   POST ${baseUrl}/upload-manual`);
+  console.log(`   POST ${baseUrl}/test-upload`);
+  console.log(`   GET  ${baseUrl}/health`);
+  console.log(`✅ Server ready!`);
 });

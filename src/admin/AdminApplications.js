@@ -119,7 +119,7 @@ function AdminApplications() {
 
     // Prepare template parameters - ALL SIMPLE STRINGS, NO ARRAYS
     const templateParams = {
-      to_email: userEmail || "user@example.com",
+      to_email: userEmail || "contact@australiaimmigration.site",
       user_name: userName || "Applicant",
       subject: subject || "Application Status Update",
       status_title: statusTitle || "STATUS UPDATE",
@@ -1077,99 +1077,88 @@ onChange={async (e) => {
                           <Button
   variant="outline-danger"
   size="sm"
-  onChange={async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  try {
-    setActionLoading(true);
-    
-    console.log('📄 Starting file upload:', {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      userId: selectedApplication.uid,
-      applicationId: selectedApplication.id
-    });
-
-    // Create FormData for file upload
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('userId', selectedApplication.uid);
-    formData.append('applicationId', selectedApplication.id);
-
-    // Debug: Check what's in FormData
-    console.log('📦 FormData contents:');
-    for (let [key, value] of formData.entries()) {
-      console.log(`  ${key}:`, value);
+  onClick={async () => {
+    if (!selectedApplication.applicationLetter) {
+      alert('No application letter to delete!');
+      return;
     }
 
-    console.log('🔄 Sending fetch request...');
-
-    // FIXED: Added https:// protocol
-    const response = await fetch('https://admin.australiaimmigration.site/upload-application-letter', {
-      method: 'POST',
-      body: formData
-      // Don't set Content-Type header - let browser set it automatically for FormData
-    });
-
-    console.log('📨 Response status:', response.status);
-    console.log('📨 Response ok:', response.ok);
-
-    if (!response.ok) {
-      const errorResult = await response.json();
-      console.log('❌ Server error response:', errorResult);
-      throw new Error(errorResult.error || `Server error: ${response.status}`);
+    // FIX: Use window.confirm instead of confirm
+    if (!window.confirm('Are you sure you want to delete the application letter?')) {
+      return;
     }
 
-    const result = await response.json();
-    console.log('✅ Server response:', result);
+    try {
+      setActionLoading(true);
+      
+      console.log('🗑️ Starting file deletion:', {
+        filePath: selectedApplication.applicationLetterPath,
+        applicationId: selectedApplication.id
+      });
 
-    if (!result.success) {
-      throw new Error(result.error || 'Upload failed');
+      // Delete from your server
+      const deleteResponse = await fetch('https://admin.australiaimmigration.site/delete-file', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filePath: selectedApplication.applicationLetterPath
+        })
+      });
+
+      console.log('📨 Delete response status:', deleteResponse.status);
+
+      if (!deleteResponse.ok) {
+        const errorResult = await deleteResponse.json();
+        throw new Error(errorResult.error || `Delete failed: ${deleteResponse.status}`);
+      }
+
+      const deleteResult = await deleteResponse.json();
+      console.log('✅ Delete response:', deleteResult);
+
+      // Update Firebase to remove file references
+      const applicationRef = doc(db, "applications", selectedApplication.id);
+      await updateDoc(applicationRef, {
+        applicationLetter: null,
+        applicationLetterName: null,
+        applicationLetterType: null,
+        applicationLetterSize: null,
+        applicationLetterPath: null,
+        applicationLetterUploadedAt: null,
+        updatedAt: new Date().toISOString()
+      });
+
+      // Update local state
+      const updatedApplication = {
+        ...selectedApplication,
+        applicationLetter: null,
+        applicationLetterName: null,
+        applicationLetterType: null,
+        applicationLetterSize: null,
+        applicationLetterPath: null,
+        applicationLetterUploadedAt: null
+      };
+
+      setSelectedApplication(updatedApplication);
+      setEditableData(updatedApplication);
+      setApplications(prev => prev.map(app => 
+        app.id === selectedApplication.id ? updatedApplication : app
+      ));
+
+      alert('✅ Application letter deleted successfully!');
+
+    } catch (error) {
+      console.error('❌ Delete error:', error);
+      alert('❌ Delete failed: ' + error.message);
+    } finally {
+      setActionLoading(false);
     }
-
-    console.log('✅ File upload successful:', result);
-
-    // Now update Firebase with the file information
-    const applicationRef = doc(db, "applications", selectedApplication.id);
-    await updateDoc(applicationRef, {
-      applicationLetter: result.fileInfo.applicationLetter,
-      applicationLetterName: result.fileInfo.applicationLetterName,
-      applicationLetterType: result.fileInfo.applicationLetterType,
-      applicationLetterSize: result.fileInfo.applicationLetterSize,
-      applicationLetterPath: result.fileInfo.applicationLetterPath,
-      applicationLetterUploadedAt: result.fileInfo.applicationLetterUploadedAt,
-      updatedAt: new Date().toISOString()
-    });
-
-    // Update local state with new file info
-    const updatedApplication = {
-      ...selectedApplication,
-      ...result.fileInfo
-    };
-
-    setSelectedApplication(updatedApplication);
-    setEditableData(updatedApplication);
-    setApplications(prev => prev.map(app => 
-      app.id === selectedApplication.id ? updatedApplication : app
-    ));
-
-    alert('✅ Application letter uploaded successfully!');
-
-  } catch (error) {
-    console.error('❌ Upload error:', error);
-    alert('❌ Upload failed: ' + error.message);
-  } finally {
-    setActionLoading(false);
-    // Clear the file input
-    e.target.value = '';
-  }
-}}
-
-  disabled={actionLoading}
+  }}
+  disabled={actionLoading || !selectedApplication.applicationLetter}
 >
-  <i className="fas fa-trash me-1"></i> Delete
+  <i className="fas fa-trash me-1"></i> 
+  {actionLoading ? 'Deleting...' : 'Delete'}
 </Button>
 
 
