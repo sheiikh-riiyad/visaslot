@@ -52,7 +52,7 @@ function Immiaccount() {
           
           if (verificationDoc.exists()) {
             const verificationData = verificationDoc.data();
-            console.log('Verification data:', verificationData);
+            
             
             if (verificationData.status === 'verified') {
               console.log('User verified via email system - loading data');
