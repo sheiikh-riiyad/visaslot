@@ -1,0 +1,722 @@
+.immi-account-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 50vh;
+  color: white;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.not-logged-in {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 500px;
+  margin: 50px auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.not-logged-in h2 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.not-logged-in p {
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: #667eea;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #5a6fd8;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: #f8f9fa;
+  color: #333;
+  border: 2px solid #e1e5e9;
+}
+
+.btn-secondary:hover {
+  background: #e9ecef;
+  transform: translateY(-2px);
+}
+
+.account-header {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.header-content h1 {
+  color: #333;
+  margin: 0 0 10px 0;
+  font-size: 28px;
+}
+
+.header-content p {
+  color: #666;
+  margin: 0;
+  font-size: 16px;
+}
+
+.sign-out-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s ease;
+}
+
+.sign-out-btn:hover {
+  background: #c82333;
+}
+
+.account-content {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .account-content {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.status-card, .info-card, .activities-card, .actions-card, .details-card {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.card-header h2 {
+  color: #333;
+  margin: 0;
+}
+
+.status-badge {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.status-approved {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-rejected {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.status-pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-review {
+  background: #cce7ff;
+  color: #004085;
+}
+
+.status-submitted {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+.status-default {
+  background: #f8f9fa;
+  color: #6c757d;
+}
+
+.status-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.timeline-step {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.timeline-step.active {
+  background: #f8f9fa;
+  border-left: 4px solid #667eea;
+}
+
+.step-icon {
+  width: 40px;
+  height: 40px;
+  background: #e9ecef;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #6c757d;
+}
+
+.timeline-step.active .step-icon {
+  background: #667eea;
+  color: white;
+}
+
+.step-info h4 {
+  margin: 0 0 5px 0;
+  color: #333;
+}
+
+.step-info p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.info-grid {
+  display: grid;
+  gap: 15px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.info-item label {
+  display: block;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.info-item p {
+  margin: 0;
+  color: #666;
+}
+
+.activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  transition: background 0.3s ease;
+}
+
+.activity-item:hover {
+  background: #e9ecef;
+}
+
+.activity-icon {
+  font-size: 20px;
+  margin-top: 2px;
+}
+
+.activity-content h4 {
+  margin: 0 0 5px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.activity-content p {
+  margin: 0 0 8px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.activity-time {
+  font-size: 12px;
+  color: #999;
+}
+
+.actions-grid {
+  display: grid;
+  gap: 15px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.action-btn {
+  background: #f8f9fa;
+  border: 2px solid #e1e5e9;
+  padding: 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+.action-btn:hover {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+  transform: translateY(-2px);
+}
+
+.details-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.details-content p {
+  margin: 0;
+  color: #333;
+}
+
+.details-content strong {
+  color: #333;
+  min-width: 180px;
+  display: inline-block;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .immi-account-container {
+    padding: 10px;
+  }
+  
+  .account-header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .actions-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .card-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+}
+
+/* Payment Modal Styles */
+.payment-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.payment-modal {
+  background: white;
+  width: 500px;
+  max-width: 90vw;
+  height: 100vh;
+  overflow-y: auto;
+  animation: slideInRight 0.3s ease;
+  box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+}
+
+.payment-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e1e5e9;
+  background: #f8f9fa;
+}
+
+.payment-modal-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 20px;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.close-modal-btn:hover {
+  background: #e9ecef;
+  color: #333;
+}
+
+.payment-modal-content {
+  padding: 20px;
+  height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+/* Status Card Header Layout */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.status-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.status-header-right {
+  display: flex;
+  align-items: flex-start;
+}
+
+.payment-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  box-shadow: 0 4px 6px rgba(40, 167, 69, 0.2);
+}
+
+.payment-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(40, 167, 69, 0.3);
+  background: linear-gradient(135deg, #218838 0%, #1e9e8a 100%);
+}
+
+.payment-btn:active {
+  transform: translateY(0);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .payment-modal {
+    width: 100%;
+    max-width: 100vw;
+  }
+  
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .status-header-right {
+    justify-content: center;
+  }
+  
+  .payment-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .payment-modal-header {
+    padding: 15px;
+  }
+  
+  .payment-modal-content {
+    padding: 15px;
+  }
+}
+
+
+/* Status & Payment Card */
+.status-payment-card {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 40px;
+  margin-bottom: 20px;
+}
+
+.status-section,
+.payment-section {
+  flex: 1;
+}
+
+.status-section h3,
+.payment-section h3 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* Status Section */
+.status-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.status-badge-large {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  border-left: 4px solid #667eea;
+}
+
+.status-icon-large {
+  font-size: 32px;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e9ecef;
+}
+
+.status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.status-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.status-value {
+  font-size: 18px;
+  color: #333;
+  font-weight: 600;
+}
+
+.status-details {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.status-details p {
+  margin: 8px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.status-details strong {
+  color: #333;
+  min-width: 120px;
+  display: inline-block;
+}
+
+/* Payment Section */
+.payment-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.payment-info {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.payment-info p {
+  margin: 10px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.payment-info strong {
+  color: #333;
+  min-width: 120px;
+  display: inline-block;
+}
+
+.payment-btn-large {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 20px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 6px rgba(40, 167, 69, 0.2);
+}
+
+.payment-btn-large:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(40, 167, 69, 0.3);
+  background: linear-gradient(135deg, #218838 0%, #1e9e8a 100%);
+}
+
+.payment-btn-large:active {
+  transform: translateY(0);
+}
+
+.payment-icon {
+  font-size: 20px;
+}
+
+.payment-text {
+  font-size: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .status-payment-card {
+    flex-direction: column;
+    gap: 30px;
+    padding: 20px;
+  }
+  
+  .status-badge-large {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+  
+  .payment-btn-large {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .status-payment-card {
+    padding: 15px;
+  }
+  
+  .status-badge-large {
+    padding: 15px;
+  }
+  
+  .status-icon-large {
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+  }
+  
+  .payment-btn-large {
+    flex-direction: column;
+    gap: 5px;
+  }
+}

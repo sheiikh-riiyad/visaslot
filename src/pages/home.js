@@ -65,10 +65,10 @@ const Home = () => {
                 <a href="/BHPAbout" onClick={() => setActiveTab('trade')}>BHP Group Limited</a>
               </li>
               <li className={activeTab === 'aid' ? 'nav-active' : ''}>
-                <a href="#aid" onClick={() => setActiveTab('aid')}>Australian aid</a>
+                <a href="/application" onClick={() => setActiveTab('aid')}>Application</a>
               </li>
               <li className={activeTab === 'consular' ? 'nav-active' : ''}>
-                <a href="#consular" onClick={() => setActiveTab('consular')}>Consular services</a>
+                <a href="/immi.gov.au" onClick={() => setActiveTab('consular')}>Immi Account</a>
               </li>
               <li className={activeTab === 'visas' ? 'nav-active' : ''}>
                 <a href="#visas" onClick={() => setActiveTab('visas')}>Visas and migration</a>

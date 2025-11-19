@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { collection, query, where, getDocs, doc,  updateDoc } from "firebase/firestore";
 import { db, auth } from "../firebaseConfig";
-import Payment from "./payment";
+// import Payment from "./payment";
 import { Card, Row, Col, Container, Badge, Alert, Button, Modal } from "react-bootstrap";
 import SupportGlowButton from "../components/buttons";
 import { useNavigate } from "react-router-dom";
@@ -783,7 +783,7 @@ function Profile() {
         </Card>
 
         {/* Payment Section */}
-        <Payment />
+        {/* <Payment /> */}
       </Container>
 
       {/* Application Letter Modal */}
